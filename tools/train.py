@@ -16,6 +16,7 @@ from mmhuman3d.models.architectures.builder import build_architecture
 from mmhuman3d.utils.collect_env import collect_env
 from mmhuman3d.utils.logger import get_root_logger
 
+import torch.distributed as dist
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')
@@ -152,4 +153,5 @@ def main():
 
 
 if __name__ == '__main__':
+    dist.init_process_group('gloo', init_method='file:///tmp/somefile', rank=0, world_size=1)
     main()
