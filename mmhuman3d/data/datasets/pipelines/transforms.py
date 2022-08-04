@@ -769,6 +769,7 @@ class MeshAffine:
                 trans, (int(self.image_size[0]), int(self.image_size[1])),
                 flags=cv2.INTER_LINEAR)
             results['img'] = img
+            results['affined_img'] = img
 
         if 'keypoints2d' in results:
             keypoints2d = results['keypoints2d'].copy()

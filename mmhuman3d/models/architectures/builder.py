@@ -5,6 +5,7 @@ from mmcv.utils import Registry
 
 from .expressive_mesh_estimator import SMPLXImageBodyModelEstimator
 from .hybrik import HybrIK_trainer
+from .custom_mesh_estimator import CustomImageBodyModelEstimator
 from .mesh_estimator import ImageBodyModelEstimator, VideoBodyModelEstimator
 
 
@@ -24,6 +25,9 @@ ARCHITECTURES.register_module(
     name='VideoBodyModelEstimator', module=VideoBodyModelEstimator)
 ARCHITECTURES.register_module(
     name='SMPLXImageBodyModelEstimator', module=SMPLXImageBodyModelEstimator)
+
+ARCHITECTURES.register_module(
+    name='CustomImageBodyModelEstimator', module=CustomImageBodyModelEstimator)
 
 
 def build_architecture(cfg):
