@@ -129,6 +129,21 @@ def main():
 
     model = build_architecture(cfg.model)
     model.init_weights()
+    #! load pre_train
+    if cfg.model.type == 'CustomImageBodyModelEstimator':
+        with open("./work_dirs/custom_render/custom_mesh_emstimator_model_namespace.txt","w") as f:
+            for name, params in model.named_parameters():
+                print(name, file=f)
+
+        check_point_path = 'data/checkpoints/resnet50_hmr_pw3d.pth'
+        if os.path.isfile(check_point_path):
+            pretrained_state_dict = torch.load(check_point_path,map_location=lambda storage, loc: storage)
+        
+        with open("./work_dirs/custom_render/resnet50_hmr_pw3d_namespace.txt","w") as f:
+            for name, params in pretrained_state_dict['state_dict'].items():
+                print(name, file=f)
+        
+        model.load_state_dict(pretrained_state_dict['state_dict'],strict=False)
 
     datasets = [build_dataset(cfg.data.train)]
     if len(cfg.workflow) == 2:

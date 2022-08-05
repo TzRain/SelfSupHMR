@@ -32,32 +32,52 @@ import numpy as np
 # see perspective_projection() conver_verts_to_cam_coord() project_points()
 
 
+
+def custom_smpl_renderer_v2(body_model,
+                        pred_pose: torch.Tensor,
+                        pred_betas: torch.Tensor,
+                        pred_cam: torch.Tensor,
+                        image_array: torch.Tensor,
+                        img_res: Optional[int] = 224,
+                        focal_length: Optional[int] = 500):
+    show_path = 'vis_results/'
+    tensors = visualize_smpl.visualize_smpl_hmr(
+        poses=pred_pose.reshape(-1, 24 * 3),
+        betas=pred_betas,
+        cam_transl=pred_cam,
+        # bbox=bboxes_xyxy,
+        output_path=show_path,
+        render_choice="hq",
+        image_array = image_array,
+        resolution=image_array[0].shape[:2],
+        body_model=body_model,
+        overwrite=True,
+        return_tensor = True,
+        palette='segmentation',
+        read_frames_batch=True)
+    
+    save_img(tensors)
+
 def custom_smpl_renderer(
                         body_model,
-                        gt_vertices: torch.Tensor,
-                        gt_keypoints2d: torch.Tensor,
-                        gt_model_joints: torch.Tensor,
-                        has_smpl: torch.Tensor,
+                        pred_pose: torch.Tensor,
+                        pred_betas: torch.Tensor,
+                        pred_cam: torch.Tensor,
                         img_res: Optional[int] = 224,
                         focal_length: Optional[int] = 500):
         """Compute loss for part segmentations."""
-        device = gt_keypoints2d.device
-        gt_keypoints2d_valid = gt_keypoints2d[has_smpl == 1]
-        batch_size = gt_keypoints2d_valid.shape[0]
-
-        gt_vertices_valid = gt_vertices[has_smpl == 1]
-        gt_model_joints_valid = gt_model_joints[has_smpl == 1]
-
-        if batch_size == 0:
-            return torch.Tensor([0]).type_as(gt_keypoints2d)
-        gt_cam_t = estimate_translation(
-            gt_model_joints_valid,
-            gt_keypoints2d_valid,
-            focal_length=focal_length,
-            img_size=img_res,
+        pred_output = body_model(
+            betas=pred_betas,
+            body_pose=pred_pose[:, 1:],
+            global_orient=pred_pose[:, 0].unsqueeze(1),
+            pose2rot=False,
         )
+        pred_vertices = pred_output['vertices']
 
-        K = torch.eye(3)
+        batch_size = pred_vertices.shape[0]
+        device = pred_vertices.device
+        
+        K = torch.zeros([batch_size, 3, 3], device=device)
         K[0, 0] = focal_length
         K[1, 1] = focal_length
         K[2, 2] = 1
@@ -66,13 +86,15 @@ def custom_smpl_renderer(
         K = K[None, :, :]
 
         R = torch.eye(3)[None, :, :]
-        device = gt_keypoints2d.device
-        gt_sem_mask = visualize_smpl.render_smpl(
-            verts=gt_vertices_valid,
+
+        T = torch.stack([pred_cam[:, 1], pred_cam[:, 2], 2 * focal_length /(img_res * pred_cam[:, 0] + 1e-9)],dim=-1)
+        
+        render_tenser = visualize_smpl.render_smpl(
+            verts=pred_vertices,
             R=R,
+            T=T,
             K=K,
-            T=gt_cam_t,
-            render_choice='part_silhouette',
+            render_choice='hq',
             resolution=img_res,
             return_tensor=True,
             body_model=body_model,
@@ -85,7 +107,7 @@ def custom_smpl_renderer(
             verbose=False,
         )
         
-        return gt_sem_mask
+        return render_tenser
 
 
 def save_img(img,path_folders='affined_image',title=None):
@@ -105,9 +127,10 @@ def save_img(img,path_folders='affined_image',title=None):
             cv2.imwrite(f"vis_results/{path_folders}/{title}.jpg",img)
         
         elif img.ndim == 4:    
-            for i in img.shape[0]:
+            for i in range(img.shape[0]):
+                im  = img[i]
                 print(f"write vis_results/{path_folders}/{title}-{i}.jpg")
-                cv2.imwrite(f"vis/{path_folders}/{title}-{i}.jpg",img[i])
+                cv2.imwrite(f"vis_results/{path_folders}/{title}-{i}.jpg",im)
         else :
             print("unexcepted img ndim")
 
@@ -214,6 +237,10 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         set_requires_grad(self.body_model_train, False)
         set_requires_grad(self.body_model_test, False)
 
+        #! load pre-train 
+        
+
+
     def train_step(self, data_batch, optimizer, **kwargs):
         """Train step function.
 
@@ -251,6 +278,17 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             features = self.neck(features)
 
         predictions = self.head(features)
+
+        pred_betas = predictions['pred_shape'].view(-1, 10)
+        pred_pose = predictions['pred_pose'].view(-1, 24, 3, 3)
+        pred_cam = predictions['pred_cam'].view(-1, 3)
+
+        render_tensor =  custom_smpl_renderer(self.body_model_train,pred_pose,pred_betas,pred_cam)
+
+        render_tensor_de = render_tensor.detach()
+        
+        save_img(render_tensor_de,"rendered_image")
+
         targets = self.prepare_targets(data_batch)
 
         # optimize discriminator (if have)
@@ -794,10 +832,6 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             losses['loss_segm_mask'] = self.compute_part_segmentation_loss(
                 pred_segm_mask, gt_vertices, gt_keypoints2d, gt_model_joints,
                 has_smpl)
-        
-        render_tensor =  custom_smpl_renderer(self.body_model_train,gt_vertices, gt_keypoints2d, gt_model_joints,has_smpl)
-        
-        save_img(render_tensor,path_folders="rendered")
 
         return losses
 

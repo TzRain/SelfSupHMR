@@ -80,18 +80,18 @@
       "request": "launch",
       "program": "${workspaceFolder}/tools/train.py",
       "console": "integratedTerminal",
-      "justMyCode": false,
+      "justMyCode": true,
       "args": [
         "configs/custom/resnet50_hmr_render.py",
         "--work-dir",
-        "work_dirs/hmr-try",
+        "work_dirs/custom_render",
         "--gpus",
         "1",
         "--no-validate"
       ]
     },
     {
-      "name": "Run Demo",
+      "name": "render_smpl",
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/demo/render_smpl.py",

@@ -17,6 +17,7 @@ from mmhuman3d.apis import (
 )
 from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_hmr
 from mmhuman3d.data.data_structures.human_data import HumanData
+from mmhuman3d.models.architectures.custom_mesh_estimator import save_img
 from mmhuman3d.utils.demo_utils import (
     extract_feature_sequence,
     get_speed_up_interval,
@@ -198,7 +199,7 @@ def single_person_with_mmdet(args,load_human_data=False):
                 output_folder=frames_folder)
 
         body_model_config = dict(model_path=args.body_model_dir, type='smpl')
-        visualize_smpl_hmr(
+        tensors = visualize_smpl_hmr(
             poses=smpl_poses.reshape(-1, 24 * 3),
             betas=smpl_betas,
             cam_transl=pred_cams,
@@ -209,8 +210,12 @@ def single_person_with_mmdet(args,load_human_data=False):
             origin_frames=frames_folder,
             body_model_config=body_model_config,
             overwrite=True,
+            return_tensor = True,
             palette=args.palette,
             read_frames_batch=True)
+        
+        save_img(tensors,'demo')
+
         if args.output is None:
             shutil.rmtree(frames_folder)
 
@@ -221,7 +226,7 @@ def main(args):
     
 
     if args.single_person_demo:
-        single_person_with_mmdet(args, True)
+        single_person_with_mmdet(args)
 
 
 if __name__ == '__main__':

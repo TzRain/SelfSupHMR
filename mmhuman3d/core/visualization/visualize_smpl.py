@@ -1093,6 +1093,13 @@ def visualize_smpl_hmr(cam_transl,
     frames and predicted cameras."""
     if kp2d is not None:
         bbox = convert_kp2d_to_bbox(kp2d, bbox_format=bbox_format)
+    
+    if bbox is None:
+        fake_bbox=[]
+        for i in range(len(bbox)):
+            fake_bbox.append([0,0,det_width,det_height])
+        fake_bbox = np.array(fake_bbox)
+
     Ks = convert_bbox_to_intrinsic(bbox, bbox_format=bbox_format)
     K = torch.Tensor(
         get_default_hmr_intrinsic(
