@@ -33,18 +33,13 @@ import numpy as np
 
 # see perspective_projection() conver_verts_to_cam_coord() project_points()
 
-def custom_renderer(results):
-    smpl_poses = results['smpl_pose']
-    smpl_betas = results['smpl_beta']
-    pred_cams = results['camera']
-    affined_imgs = results['affined_img']
+def custom_renderer(predictions,affined_img):
+    smpl_poses = predictions['pred_pose']
+    smpl_betas = predictions['pred_shape']
+    pred_cams = predictions['pred_cam']
+    affined_imgs = np.array(affined_img)
 
     print("run custom renderer")
-
-    smpl_poses = np.array(smpl_poses)
-    smpl_betas = np.array(smpl_betas)
-    pred_cams = np.array(pred_cams)
-    affined_imgs = np.array(affined_imgs)
 
     if smpl_poses.shape[1:] == (24, 3, 3):
         smpl_poses = rotmat_to_aa(smpl_poses)
@@ -181,6 +176,9 @@ def custom_smpl_renderer(
 
 
 def save_img(img,path_folders='affined_image',title=None):
+    # not need it any more
+    return 
+
     if title is None:
         now = datetime.now()
         title = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -346,11 +344,7 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         predictions = self.head(features)
 
-        pred_betas = predictions['pred_shape'].view(-1, 10)
-        pred_pose = predictions['pred_pose'].view(-1, 24, 3, 3)
-        pred_cam = predictions['pred_cam'].view(-1, 3)
-
-        render_tensor =  custom_smpl_renderer_v2(self.body_model_train,pred_pose,pred_betas,pred_cam,affined_imgs)
+        render_tensor =  custom_renderer(predictions,affined_imgs)
 
         render_tensor_de = render_tensor.detach()
         
@@ -964,7 +958,15 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
 
         if self.neck is not None:
             features = self.neck(features)
+
+        affined_img = [item['affined_img'] for item in img_metas]
+
         predictions = self.head(features)
+
+        custom_renderer_tensor = custom_renderer(predictions,all_preds)
+
+        save_img(custom_renderer_tensor,'demo')
+
         pred_pose = predictions['pred_pose']
         pred_betas = predictions['pred_shape']
         pred_cam = predictions['pred_cam']
@@ -973,10 +975,10 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
             body_pose=pred_pose[:, 1:],
             global_orient=pred_pose[:, 0].unsqueeze(1),
             pose2rot=False)
-
         pred_vertices = pred_output['vertices']
         pred_keypoints_3d = pred_output['joints']
         all_preds = {}
+        all_preds['affined_img'] = affined_img
         all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
         all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
         all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
@@ -987,20 +989,6 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
             image_path.append(img_meta['image_path'])
         all_preds['image_path'] = image_path
         all_preds['image_idx'] = kwargs['sample_idx']
-
-        #Add affined
-        affined_img = [item['affined_img'] for item in img_metas]
-        all_preds['affined_img'] = affined_img
-
-        pred_betas = predictions['pred_shape'].view(-1, 10)
-        pred_pose = predictions['pred_pose'].view(-1, 24, 3, 3)
-        pred_cam = predictions['pred_cam'].view(-1, 3)
-        affined_img = np.array(affined_img)
-
-        custom_renderer_tensor = custom_renderer(all_preds)
-
-        save_img(custom_renderer_tensor,'demo')
-
         return all_preds
 
 

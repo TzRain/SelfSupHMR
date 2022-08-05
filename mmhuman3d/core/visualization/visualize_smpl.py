@@ -889,6 +889,7 @@ def render_smpl(
             T = torch.Tensor(T)
         T = T[start:end]
         T = T.view(num_frames * num_person, 1, 3)
+        Ks = Ks.to(vertices.device)
         vertices = torch.einsum('blc,bvc->bvl', Ks, vertices + T)
 
         R = None

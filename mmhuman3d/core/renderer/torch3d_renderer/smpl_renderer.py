@@ -1,3 +1,4 @@
+from curses import flash
 import os.path as osp
 from pathlib import Path
 from typing import Iterable, Optional, Tuple, Union
@@ -186,17 +187,18 @@ class SMPLRenderer(BaseRenderer):
 
         rgbs = rendered_images[..., :3]
         valid_masks = rendered_images[..., 3:]
+        #? 
         images = normalize(
             images,
             origin_value_range=[0, 255],
             out_value_range=[0, 1],
             dtype=torch.float32) if images is not None else None
+        
 
         bgrs = rgb2bgr(rgbs)
 
         # write temp images for the output video
         
-
         if images is not None:
             output_images = bgrs * valid_masks * self.alpha + \
                 images * valid_masks * (
@@ -240,9 +242,9 @@ class SMPLRenderer(BaseRenderer):
             output_images = output_images * (
                 1 - pointcloud_mask) + pointcloud_mask * pointcloud_bgr
 
-        output_images = tensor2array(output_images)
+        
         if self.output_path is not None:
-
+            output_images = tensor2array(output_images)
             for frame_idx, real_idx in enumerate(indexes):
                 folder = self.temp_path if self.temp_path is not None else\
                     self.output_path
@@ -264,9 +266,11 @@ class SMPLRenderer(BaseRenderer):
 
         # return
         if self.return_tensor:
-
             if images is not None:
-                rendered_map = torch.tensor(output_images)
+                if self.output_path is not None:
+                    rendered_map = torch.tensor(output_images)
+                else:
+                    rendered_map = output_images
             else:
                 rendered_map = rendered_tensor
 
