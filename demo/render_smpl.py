@@ -48,33 +48,22 @@ except (ImportError, ModuleNotFoundError):
 
 
 
-def custom_renderer(mesh_results):
+def custom_renderer(results):
+    smpl_poses = results['smpl_pose']
+    smpl_betas = results['smpl_beta']
+    pred_cams = results['camera']
+    affined_imgs = results['affined_img']
 
     print("run custom renderer")
-
-    pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_imgs= \
-            [], [], [], [], [], []
-    smpl_betas.append(mesh_results[0]['smpl_beta'])
-    smpl_pose = mesh_results[0]['smpl_pose']
-    smpl_poses.append(smpl_pose)
-    pred_cams.append(mesh_results[0]['camera'])
-    verts.append(mesh_results[0]['vertices'])
-    bboxes_xyxy.append(mesh_results[0]['bbox'])
-    affined_imgs.append(mesh_results[0]['affined_img'])
 
     smpl_poses = np.array(smpl_poses)
     smpl_betas = np.array(smpl_betas)
     pred_cams = np.array(pred_cams)
-    verts = np.array(verts)
-    bboxes_xyxy = np.array(bboxes_xyxy)
     affined_imgs = np.array(affined_imgs)
 
     if smpl_poses.shape[1:] == (24, 3, 3):
         smpl_poses = rotmat_to_aa(smpl_poses)
-    elif smpl_poses.shape[1:] == (24, 3):
-        smpl_poses = smpl_pose
-    else:
-        raise (f'Wrong shape of `smpl_pose`: {smpl_pose.shape}')
+    
 
     body_model_config = dict(model_path="data/body_models/", type='smpl')
     tensors = visualize_smpl_hmr(
@@ -159,7 +148,6 @@ def inference_image_based_model(
     """
     # only two kinds of bbox format is supported.
     assert format in ['xyxy', 'xywh']
-    mesh_results = []
     if len(det_results) == 0:
         return []
 
@@ -174,14 +162,10 @@ def inference_image_based_model(
         det_results = [det_results[i] for i in valid_idx]
 
     if format == 'xyxy':
-        bboxes_xyxy = bboxes
         bboxes_xywh = xyxy2xywh(bboxes)
     else:
-        # format is already 'xywh'
         bboxes_xywh = bboxes
-        bboxes_xyxy = xywh2xyxy(bboxes)
 
-    # if bbox_thr remove all bounding box
     if len(bboxes_xywh) == 0:
         return []
 
@@ -230,19 +214,7 @@ def inference_image_based_model(
             img_metas=batch_data['img_metas'],
             sample_idx=batch_data['sample_idx'],
         )
-
-    for idx in range(len(det_results)):
-        mesh_result = det_results[idx].copy()
-        mesh_result['bbox'] = bboxes_xyxy[idx]
-        mesh_result['camera'] = results['camera'][idx]
-        mesh_result['smpl_pose'] = results['smpl_pose'][idx]
-        mesh_result['smpl_beta'] = results['smpl_beta'][idx]
-        mesh_result['vertices'] = results['vertices'][idx]
-        mesh_result['keypoints_3d'] = results['keypoints_3d'][idx]
-        mesh_result['affined_img'] = results['affined_img'][idx]
-        mesh_results.append(mesh_result)
-    custom_renderer(mesh_results)
-    return mesh_results
+    return results
 
 def single_person_with_mmdet(args,load_human_data=False):
     """Estimate smpl parameters from single-person
@@ -252,127 +224,38 @@ def single_person_with_mmdet(args,load_human_data=False):
         frames_iter (np.ndarray,): prepared frames
 
     """
-    if load_human_data == False:
-        frames_iter = prepare_frames(args.input_path)
+    frames_iter = prepare_frames(args.input_path)
 
-        extractor = None 
-        mesh_model = test_custom_mesh_estimator()
-        mesh_model.cfg = mmcv.Config.fromfile(args.mesh_reg_config) 
-        mesh_model.to(args.device.lower())
-        mesh_model.eval()
+    extractor = None 
+    mesh_model = test_custom_mesh_estimator()
+    mesh_model.cfg = mmcv.Config.fromfile(args.mesh_reg_config) 
+    mesh_model.to(args.device.lower())
+    mesh_model.eval()
 
-        # mesh_model, extractor = init_model(
-        #     args.mesh_reg_config,
-        #     args.mesh_reg_checkpoint,
-        #     device=args.device.lower())
+    # mesh_model, extractor = init_model(
+    #     args.mesh_reg_config,
+    #     args.mesh_reg_checkpoint,
+    #     device=args.device.lower())
 
-        pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_imgs= \
-            [], [], [], [], [], []
+    pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_imgs= \
+        [], [], [], [], [], []
 
-        frame_id_list, result_list = \
-            get_detection_result(args, frames_iter, mesh_model, extractor)
+    frame_id_list, result_list = \
+        get_detection_result(args, frames_iter, mesh_model, extractor)
 
-        for i, result in enumerate(mmcv.track_iter_progress(result_list)):
-            frame_id = frame_id_list[i]
-            mesh_results = inference_image_based_model(
-                mesh_model,
-                frames_iter[frame_id],
-                result,
-                bbox_thr=args.bbox_thr,
-                format='xyxy')
-            
-        # release GPU memory
-        del mesh_model
-        del extractor
-        torch.cuda.empty_cache()
-
+    for i, result in enumerate(mmcv.track_iter_progress(result_list)):
+        frame_id = frame_id_list[i]
+        inference_image_based_model(
+            mesh_model,
+            frames_iter[frame_id],
+            result,
+            bbox_thr=args.bbox_thr,
+            format='xyxy')
         
-        render_data = {
-            "smpl_poses":smpl_poses,
-            "smpl_betas":smpl_betas,
-            "pred_cams":pred_cams,
-            "bboxes_xyxy":bboxes_xyxy,
-            "frames_iter":frames_iter
-        } 
-        np.save("demo_result/render_data_result.npz",render_data)
-        
-    else :
-        print("load data")
-        render_data=np.load("demo_result/render_data_result.npz", allow_pickle=True)
-        smpl_poses = render_data.item().get('smpl_poses')
-        smpl_betas = render_data.item().get('smpl_betas')
-        pred_cams = render_data.item().get('pred_cams')
-        bboxes_xyxy = render_data.item().get('bboxes_xyxy')
-        frames_iter = render_data.item().get('frames_iter')
-        frame_id_list  = []
-        for i, frame in enumerate(mmcv.track_iter_progress(frames_iter)):
-            frame_id_list.append(i)
-
-    if args.output is not None and load_human_data == False:
-        body_pose_, global_orient_, smpl_betas_, verts_, pred_cams_, \
-            bboxes_xyxy_, image_path_, person_id_, frame_id_ = \
-            [], [], [], [], [], [], [], [], []
-        human_data = HumanData()
-        frames_folder = osp.join(args.output, 'images')
-        os.makedirs(frames_folder, exist_ok=True)
-        array_to_images(
-            np.array(frames_iter)[frame_id_list], output_folder=frames_folder)
-
-        for i, img_i in enumerate(sorted(os.listdir(frames_folder))):
-            body_pose_.append(smpl_poses[i][1:])
-            global_orient_.append(smpl_poses[i][:1])
-            smpl_betas_.append(smpl_betas[i])
-            verts_.append(verts[i])
-            pred_cams_.append(pred_cams[i])
-            bboxes_xyxy_.append(bboxes_xyxy[i])
-            image_path_.append(os.path.join('images', img_i))
-            person_id_.append(0)
-            frame_id_.append(frame_id_list[i])
-
-        smpl = {}
-        smpl['body_pose'] = np.array(body_pose_).reshape((-1, 23, 3))
-        smpl['global_orient'] = np.array(global_orient_).reshape((-1, 3))
-        smpl['betas'] = np.array(smpl_betas_).reshape((-1, 10))
-        human_data['smpl'] = smpl
-        human_data['verts'] = verts_
-        human_data['pred_cams'] = pred_cams_
-        human_data['bboxes_xyxy'] = bboxes_xyxy_
-        human_data['image_path'] = image_path_
-        human_data['person_id'] = person_id_
-        human_data['frame_id'] = frame_id_
-        human_data.dump(osp.join(args.output, 'inference_result.npz'))
- 
-
-    
-        if args.output is not None:
-            frames_folder = os.path.join(args.output, 'images')
-        else:
-            frames_folder = osp.join(Path(args.show_path).parent, 'images')
-            os.makedirs(frames_folder, exist_ok=True)
-            array_to_images(
-                np.array(frames_iter)[frame_id_list],
-                output_folder=frames_folder)
-
-        body_model_config = dict(model_path=args.body_model_dir, type='smpl')
-        tensors = visualize_smpl_hmr(
-            poses=smpl_poses.reshape(-1, 24 * 3),
-            betas=smpl_betas,
-            cam_transl=pred_cams,
-            output_path=args.show_path,
-            render_choice=args.render_choice,
-            resolution=affined_imgs[0].shape[:2],
-            image_array=affined_imgs,
-            body_model_config=body_model_config,
-            overwrite=True,
-            return_tensor = True,
-            no_grad = False,
-            palette=args.palette,
-            read_frames_batch=True)
-        
-        save_img(tensors,'demo')
-
-        if args.output is None:
-            shutil.rmtree(frames_folder)
+    # release GPU memory
+    del mesh_model
+    del extractor
+    torch.cuda.empty_cache()
 
 
 def main(args):

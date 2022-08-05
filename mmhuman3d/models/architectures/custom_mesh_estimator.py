@@ -33,39 +33,40 @@ import numpy as np
 
 # see perspective_projection() conver_verts_to_cam_coord() project_points()
 
+def custom_renderer(results):
+    smpl_poses = results['smpl_pose']
+    smpl_betas = results['smpl_beta']
+    pred_cams = results['camera']
+    affined_imgs = results['affined_img']
 
-def render_copy_from_demo(mesh_results,body_model):
-    pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_imgs= \
-            [], [], [], [], [], []
-    smpl_betas.append(mesh_results['smpl_beta'])
-    smpl_pose = mesh_results['smpl_pose']
-    smpl_poses.append(smpl_pose)
-    pred_cams.append(mesh_results['camera'])
-    verts.append(mesh_results['vertices'])
-    affined_imgs.append(mesh_results['affined_img'])
+    print("run custom renderer")
+
     smpl_poses = np.array(smpl_poses)
     smpl_betas = np.array(smpl_betas)
     pred_cams = np.array(pred_cams)
-    verts = np.array(verts)
-    bboxes_xyxy = np.array(bboxes_xyxy)
     affined_imgs = np.array(affined_imgs)
+
     if smpl_poses.shape[1:] == (24, 3, 3):
-        smpl_poses = rotmat_to_aa(smpl_poses) 
+        smpl_poses = rotmat_to_aa(smpl_poses)
+    
+
+    body_model_config = dict(model_path="data/body_models/", type='smpl')
     tensors = visualize_smpl.visualize_smpl_hmr(
         poses=smpl_poses.reshape(-1, 24 * 3),
         betas=smpl_betas,
         cam_transl=pred_cams,
-        output_path="vis_results/",
+        output_path='vis_results/custom_demo',
         render_choice='hq',
         resolution=affined_imgs[0].shape[:2],
         image_array=affined_imgs,
-        body_model=body_model,
+        body_model_config=body_model_config,
         overwrite=True,
         return_tensor = True,
         no_grad = False,
         palette='segmentation',
         read_frames_batch=True)
     return tensors
+
 
 def custom_smpl_renderer_v2(body_model,
                         pred_pose: torch.Tensor,
@@ -996,11 +997,10 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
         pred_cam = predictions['pred_cam'].view(-1, 3)
         affined_img = np.array(affined_img)
 
-        # render_tensor =  custom_smpl_renderer_v2(self.body_model_test,pred_pose,pred_betas,pred_cam,affined_img)
-        # render_tensor =  custom_smpl_renderer(self.body_model_test,pred_pose,pred_betas,pred_cam)
-        # render_tensor_de = render_tensor.detach()
-        # save_img(render_tensor_de,"rendered_image")
-        # save_img(affined_img)
+        custom_renderer_tensor = custom_renderer(all_preds)
+
+        save_img(custom_renderer_tensor,'demo')
+
         return all_preds
 
 
