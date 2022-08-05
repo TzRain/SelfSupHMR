@@ -98,7 +98,7 @@ test_pipeline = [
     dict(
         type='Collect',
         keys=['img', *data_keys],
-        meta_keys=['image_path', 'center', 'scale', 'rotation'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation','affined_img'])
 ]
 
 inference_pipeline = [
@@ -108,7 +108,7 @@ inference_pipeline = [
     dict(
         type='Collect',
         keys=['img', 'sample_idx'],
-        meta_keys=['image_path', 'center', 'scale', 'rotation'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation','affined_img'])
 ]
 
 data = dict(

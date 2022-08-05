@@ -1096,11 +1096,14 @@ def visualize_smpl_hmr(cam_transl,
     
     if bbox is None:
         fake_bbox=[]
-        for i in range(len(bbox)):
+        for i in range(len(cam_transl)):
             fake_bbox.append([0,0,det_width,det_height])
         fake_bbox = np.array(fake_bbox)
-
-    Ks = convert_bbox_to_intrinsic(bbox, bbox_format=bbox_format)
+        Ks = convert_bbox_to_intrinsic(fake_bbox, bbox_format=bbox_format)
+        # Ks = torch.from_numpy(Ks)
+        # Ks = Ks.to(cam_transl.device)
+    else:
+        Ks = convert_bbox_to_intrinsic(bbox, bbox_format=bbox_format)
     K = torch.Tensor(
         get_default_hmr_intrinsic(
             focal_length=focal_length,

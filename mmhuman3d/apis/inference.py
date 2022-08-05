@@ -198,6 +198,7 @@ def inference_image_based_model(
         mesh_result['smpl_beta'] = results['smpl_beta'][idx]
         mesh_result['vertices'] = results['vertices'][idx]
         mesh_result['keypoints_3d'] = results['keypoints_3d'][idx]
+        mesh_result['affined_img'] = results['affined_img'][idx]
         mesh_results.append(mesh_result)
     return mesh_results
 

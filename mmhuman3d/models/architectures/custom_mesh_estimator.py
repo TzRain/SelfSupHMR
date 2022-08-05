@@ -10,12 +10,14 @@ import torch.nn.functional as F
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
 from mmhuman3d.core.conventions.keypoints_mapping import get_keypoint_idx
 from mmhuman3d.models.utils import FitsDict
+from mmhuman3d.utils.demo_utils import convert_bbox_to_intrinsic, convert_kp2d_to_bbox, get_default_hmr_intrinsic
 from mmhuman3d.utils.geometry import (
     batch_rodrigues,
     estimate_translation,
     project_points,
     rotation_matrix_to_angle_axis,
 )
+from mmhuman3d.utils.transforms import rotmat_to_aa
 from ..backbones.builder import build_backbone
 from ..body_models.builder import build_body_model
 from ..discriminators.builder import build_discriminator
@@ -32,6 +34,38 @@ import numpy as np
 # see perspective_projection() conver_verts_to_cam_coord() project_points()
 
 
+def render_copy_from_demo(mesh_results,body_model):
+    pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_imgs= \
+            [], [], [], [], [], []
+    smpl_betas.append(mesh_results['smpl_beta'])
+    smpl_pose = mesh_results['smpl_pose']
+    smpl_poses.append(smpl_pose)
+    pred_cams.append(mesh_results['camera'])
+    verts.append(mesh_results['vertices'])
+    affined_imgs.append(mesh_results['affined_img'])
+    smpl_poses = np.array(smpl_poses)
+    smpl_betas = np.array(smpl_betas)
+    pred_cams = np.array(pred_cams)
+    verts = np.array(verts)
+    bboxes_xyxy = np.array(bboxes_xyxy)
+    affined_imgs = np.array(affined_imgs)
+    if smpl_poses.shape[1:] == (24, 3, 3):
+        smpl_poses = rotmat_to_aa(smpl_poses) 
+    tensors = visualize_smpl.visualize_smpl_hmr(
+        poses=smpl_poses.reshape(-1, 24 * 3),
+        betas=smpl_betas,
+        cam_transl=pred_cams,
+        output_path="vis_results/",
+        render_choice='hq',
+        resolution=affined_imgs[0].shape[:2],
+        image_array=affined_imgs,
+        body_model=body_model,
+        overwrite=True,
+        return_tensor = True,
+        no_grad = False,
+        palette='segmentation',
+        read_frames_batch=True)
+    return tensors
 
 def custom_smpl_renderer_v2(body_model,
                         pred_pose: torch.Tensor,
@@ -39,24 +73,59 @@ def custom_smpl_renderer_v2(body_model,
                         pred_cam: torch.Tensor,
                         image_array: torch.Tensor,
                         img_res: Optional[int] = 224,
+                        bbox_format='xyxy',
                         focal_length: Optional[int] = 500):
     show_path = 'vis_results/'
-    tensors = visualize_smpl.visualize_smpl_hmr(
+    device = pred_pose.device
+
+    if pred_pose.shape[1:] == (24, 3, 3):
+        pred_pose = rotmat_to_aa(pred_pose)
+
+    K = torch.Tensor(
+        get_default_hmr_intrinsic(
+            focal_length=focal_length,
+            det_height=img_res,
+            det_width=img_res)).to(device=device)
+    
+    T = torch.cat([
+        pred_cam[..., [1]], pred_cam[..., [2]], 2 * focal_length /
+        (img_res * pred_cam[..., [0]] + 1e-9)
+    ], -1).to(device=device)
+
+    R = torch.eye(3)[None, :, :].to(device=device)
+    
+    # fake_bbox=[]
+    # for i in range(len(pred_cam)):
+    #     fake_bbox.append([0,0,img_res,img_res])
+    # fake_bbox = np.array(fake_bbox)
+    # Ks = convert_bbox_to_intrinsic(fake_bbox, bbox_format=bbox_format)
+    # Ks = torch.from_numpy(Ks)
+    # Ks = Ks.to(device)
+
+    tensors = visualize_smpl.render_smpl(
+        # Ks=Ks, 
+        K=K, 
+        T=T,
+        R=R,
         poses=pred_pose.reshape(-1, 24 * 3),
         betas=pred_betas,
-        cam_transl=pred_cam,
-        # bbox=bboxes_xyxy,
-        output_path=show_path,
+        body_model=body_model,
+        in_ndc=False,
+        projection='perspective',
+        convention='opencv',
         render_choice="hq",
         image_array = image_array,
         resolution=image_array[0].shape[:2],
-        body_model=body_model,
-        overwrite=True,
-        return_tensor = True,
         palette='segmentation',
-        read_frames_batch=True)
+        return_tensor = True,
+        read_frames_batch=True,
+        no_grad=False,
+        output_path=show_path,
+        overwrite=True
+    )
     
-    save_img(tensors)
+    return tensors
+    
 
 def custom_smpl_renderer(
                         body_model,
@@ -77,13 +146,13 @@ def custom_smpl_renderer(
         batch_size = pred_vertices.shape[0]
         device = pred_vertices.device
         
-        K = torch.zeros([batch_size, 3, 3], device=device)
+        K = torch.zeros([3, 3], device=device)
         K[0, 0] = focal_length
         K[1, 1] = focal_length
         K[2, 2] = 1
         K[0, 2] = img_res / 2.
         K[1, 2] = img_res / 2.
-        K = K[None, :, :]
+        # K = K[None, :, :]
 
         R = torch.eye(3)[None, :, :]
 
@@ -237,9 +306,6 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         set_requires_grad(self.body_model_train, False)
         set_requires_grad(self.body_model_test, False)
 
-        #! load pre-train 
-        
-
 
     def train_step(self, data_batch, optimizer, **kwargs):
         """Train step function.
@@ -283,7 +349,7 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         pred_pose = predictions['pred_pose'].view(-1, 24, 3, 3)
         pred_cam = predictions['pred_cam'].view(-1, 3)
 
-        render_tensor =  custom_smpl_renderer(self.body_model_train,pred_pose,pred_betas,pred_cam)
+        render_tensor =  custom_smpl_renderer_v2(self.body_model_train,pred_pose,pred_betas,pred_cam,affined_imgs)
 
         render_tensor_de = render_tensor.detach()
         
@@ -920,6 +986,21 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
             image_path.append(img_meta['image_path'])
         all_preds['image_path'] = image_path
         all_preds['image_idx'] = kwargs['sample_idx']
+
+        #Add affined
+        affined_img = [item['affined_img'] for item in img_metas]
+        all_preds['affined_img'] = affined_img
+
+        pred_betas = predictions['pred_shape'].view(-1, 10)
+        pred_pose = predictions['pred_pose'].view(-1, 24, 3, 3)
+        pred_cam = predictions['pred_cam'].view(-1, 3)
+        affined_img = np.array(affined_img)
+
+        # render_tensor =  custom_smpl_renderer_v2(self.body_model_test,pred_pose,pred_betas,pred_cam,affined_img)
+        # render_tensor =  custom_smpl_renderer(self.body_model_test,pred_pose,pred_betas,pred_cam)
+        # render_tensor_de = render_tensor.detach()
+        # save_img(render_tensor_de,"rendered_image")
+        # save_img(affined_img)
         return all_preds
 
 
