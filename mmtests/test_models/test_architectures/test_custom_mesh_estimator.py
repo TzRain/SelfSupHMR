@@ -43,3 +43,6 @@ def test_custom_mesh_estimator():
         raise Exception('It is not CustomImageBodyModelEstimator!!!')
     
     return model
+
+if __name__ == '__main__':
+    print(test_custom_mesh_estimator())

@@ -63,117 +63,6 @@ def custom_renderer(predictions,affined_img):
     return tensors
 
 
-def custom_smpl_renderer_v2(body_model,
-                        pred_pose: torch.Tensor,
-                        pred_betas: torch.Tensor,
-                        pred_cam: torch.Tensor,
-                        image_array: torch.Tensor,
-                        img_res: Optional[int] = 224,
-                        bbox_format='xyxy',
-                        focal_length: Optional[int] = 500):
-    show_path = 'vis_results/'
-    device = pred_pose.device
-
-    if pred_pose.shape[1:] == (24, 3, 3):
-        pred_pose = rotmat_to_aa(pred_pose)
-
-    K = torch.Tensor(
-        get_default_hmr_intrinsic(
-            focal_length=focal_length,
-            det_height=img_res,
-            det_width=img_res)).to(device=device)
-    
-    T = torch.cat([
-        pred_cam[..., [1]], pred_cam[..., [2]], 2 * focal_length /
-        (img_res * pred_cam[..., [0]] + 1e-9)
-    ], -1).to(device=device)
-
-    R = torch.eye(3)[None, :, :].to(device=device)
-    
-    # fake_bbox=[]
-    # for i in range(len(pred_cam)):
-    #     fake_bbox.append([0,0,img_res,img_res])
-    # fake_bbox = np.array(fake_bbox)
-    # Ks = convert_bbox_to_intrinsic(fake_bbox, bbox_format=bbox_format)
-    # Ks = torch.from_numpy(Ks)
-    # Ks = Ks.to(device)
-
-    tensors = visualize_smpl.render_smpl(
-        # Ks=Ks, 
-        K=K, 
-        T=T,
-        R=R,
-        poses=pred_pose.reshape(-1, 24 * 3),
-        betas=pred_betas,
-        body_model=body_model,
-        in_ndc=False,
-        projection='perspective',
-        convention='opencv',
-        render_choice="hq",
-        image_array = image_array,
-        resolution=image_array[0].shape[:2],
-        palette='segmentation',
-        return_tensor = True,
-        read_frames_batch=True,
-        no_grad=False,
-        output_path=show_path,
-        overwrite=True
-    )
-    
-    return tensors
-    
-
-def custom_smpl_renderer(
-                        body_model,
-                        pred_pose: torch.Tensor,
-                        pred_betas: torch.Tensor,
-                        pred_cam: torch.Tensor,
-                        img_res: Optional[int] = 224,
-                        focal_length: Optional[int] = 500):
-        """Compute loss for part segmentations."""
-        pred_output = body_model(
-            betas=pred_betas,
-            body_pose=pred_pose[:, 1:],
-            global_orient=pred_pose[:, 0].unsqueeze(1),
-            pose2rot=False,
-        )
-        pred_vertices = pred_output['vertices']
-
-        batch_size = pred_vertices.shape[0]
-        device = pred_vertices.device
-        
-        K = torch.zeros([3, 3], device=device)
-        K[0, 0] = focal_length
-        K[1, 1] = focal_length
-        K[2, 2] = 1
-        K[0, 2] = img_res / 2.
-        K[1, 2] = img_res / 2.
-        # K = K[None, :, :]
-
-        R = torch.eye(3)[None, :, :]
-
-        T = torch.stack([pred_cam[:, 1], pred_cam[:, 2], 2 * focal_length /(img_res * pred_cam[:, 0] + 1e-9)],dim=-1)
-        
-        render_tenser = visualize_smpl.render_smpl(
-            verts=pred_vertices,
-            R=R,
-            T=T,
-            K=K,
-            render_choice='hq',
-            resolution=img_res,
-            return_tensor=True,
-            body_model=body_model,
-            device=device,
-            in_ndc=False,
-            convention='pytorch3d',
-            projection='perspective',
-            no_grad=False,
-            batch_size=batch_size,
-            verbose=False,
-        )
-        
-        return render_tenser
-
 
 def save_img(img,path_folders='affined_image',title=None):
     # not need it any more
@@ -306,7 +195,7 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         set_requires_grad(self.body_model_test, False)
 
 
-    def train_step(self, data_batch, optimizer, **kwargs):
+    def train_step_org(self, data_batch, optimizer, **kwargs):
         """Train step function.
 
         In this function, the detector will finish the train step following
@@ -360,6 +249,83 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             targets = self.run_registration(predictions, targets)
 
         losses = self.compute_losses(predictions, targets)
+        # optimizer generator part
+        if self.disc is not None:
+            adv_loss = self.optimize_generator(predictions)
+            losses.update(adv_loss)
+
+        loss, log_vars = self._parse_losses(losses)
+        for key in optimizer.keys():
+            optimizer[key].zero_grad()
+        loss.backward()
+        for key in optimizer.keys():
+            optimizer[key].step()
+
+        outputs = dict(
+            loss=loss,
+            log_vars=log_vars,
+            num_samples=len(next(iter(data_batch.values()))))
+        return outputs
+    
+    def train_step(self, data_batch, optimizer, **kwargs):
+        """Train step function.
+
+        In this function, the detector will finish the train step following
+        the pipeline:
+        1. get fake and real SMPL parameters
+        2. optimize discriminator (if have)
+        3. optimize generator
+        If `self.train_cfg.disc_step > 1`, the train step will contain multiple
+        iterations for optimizing discriminator with different input data and
+        only one iteration for optimizing generator after `disc_step`
+        iterations for discriminator.
+        Args:
+            data_batch (torch.Tensor): Batch of data as input.
+            optimizer (dict[torch.optim.Optimizer]): Dict with optimizers for
+                generator and discriminator (if have).
+        Returns:
+            outputs (dict): Dict with loss, information for logger,
+            the number of samples.
+        """
+
+        img_metas = data_batch['img_metas']
+
+        affined_imgs = [item['affined_img'] for item in img_metas]
+        
+        # save_img(affined_imgs)
+
+        if self.backbone is not None:
+            img = data_batch['img']
+            features = self.backbone(img)
+        else:
+            features = data_batch['features']
+
+        if self.neck is not None:
+            features = self.neck(features)
+
+        predictions,NCE_loss = self.head(features,affined_img = affined_imgs,is_train = True)
+
+        losses={}
+
+        losses['NCE_loss'] = NCE_loss
+
+        # render_tensor =  custom_renderer(predictions,affined_imgs)
+
+        # render_tensor_de = render_tensor.detach()
+        
+        # save_img(render_tensor_de,"rendered_image")
+
+        # targets = self.prepare_targets(data_batch)
+
+        # optimize discriminator (if have)
+        if self.disc is not None:
+            self.optimize_discrinimator(predictions, data_batch, optimizer)
+
+        # if self.registration is not None:
+        #     targets = self.run_registration(predictions, targets)
+
+        # losses = self.compute_losses(predictions, targets)
+        
         # optimizer generator part
         if self.disc is not None:
             adv_loss = self.optimize_generator(predictions)
