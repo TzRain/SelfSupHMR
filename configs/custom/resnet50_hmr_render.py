@@ -33,7 +33,8 @@ model = dict(
         norm_cfg=dict(type='SyncBN', requires_grad=True),
         init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
     head=dict(
-        type='CUTHMRHead',
+        # type='CUTHMRHead',
+        type='HMRHead',
         feat_dim=2048,
         smpl_mean_params='data/body_models/smpl_mean_params.npz'),
     body_model_train=dict(

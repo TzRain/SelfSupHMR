@@ -6,7 +6,7 @@ import numpy as np
 
 from datetime import datetime
 from mmcv.runner.base_module import BaseModule
-from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_hmr
+from mmhuman3d.core.visualization import visualize_smpl
 from mmhuman3d.utils.geometry import rot6d_to_rotmat
 from mmhuman3d.utils.transforms import rotmat_to_aa
 
@@ -53,7 +53,8 @@ def custom_renderer(predictions,affined_img):
     
 
     body_model_config = dict(model_path="data/body_models/", type='smpl')
-    tensors = visualize_smpl_hmr(
+    
+    tensors = visualize_smpl.visualize_smpl_hmr(
         poses=smpl_poses.reshape(-1, 24 * 3),
         betas=smpl_betas,
         cam_transl=pred_cams,
@@ -66,10 +67,7 @@ def custom_renderer(predictions,affined_img):
         palette='segmentation',
         read_frames_batch=True)
 
-    save_img(affined_imgs)
-    save_img(tensors.detach(),'rendered_image')
-
-    return tensors,torch.Tensor(affined_imgs)
+    return tensors
 
 class CUTHMRHead(BaseModule):
     def __init__(self,
@@ -125,6 +123,9 @@ class CUTHMRHead(BaseModule):
     
     def calculate_NCE_loss(self, src, tgt): #[B,3,256,256] [B,3,256,256]
         # return 0
+        src = src.permute(0,3,1,2)
+        tgt = tgt.permute(0,3,1,2)
+
         n_layers = len(self.nce_layers)
 
         feat_q = self.netG(tgt, self.nce_layers, encode_only=True)#! encode_only
@@ -145,7 +146,7 @@ class CUTHMRHead(BaseModule):
                 init_shape=None,
                 init_cam=None,
                 is_training = False,
-                affined_img = None,
+                affined_imgs = None,
                 n_iter=3):
 
         # hmr head only support one layer feature
@@ -190,16 +191,25 @@ class CUTHMRHead(BaseModule):
             pred_rotmat = pred_rotmat.view(B, T, 24, 3, 3)
             pred_shape = pred_shape.view(B, T, 10)
             pred_cam = pred_cam.view(B, T, 3)
-        output = {
+        predictions = {
             'pred_pose': pred_rotmat,
             'pred_shape': pred_shape,
             'pred_cam': pred_cam
         }
 
         if not is_training:
-            return output
+            return predictions
         
-        return output , self.calculate_NCE_loss(custom_renderer(output,affined_img))
+        render_tensor =  custom_renderer(predictions,affined_imgs)
+
+        render_tensor_de = render_tensor.detach()
+        
+        save_img(render_tensor_de,"rendered_image")
+
+        # NCE_loss = self.calculate_NCE_loss(tensors,torch.Tensor(affined_img).to(tensors.device))
+        NCE_loss = None
+        
+        return predictions , NCE_loss
 
 
 

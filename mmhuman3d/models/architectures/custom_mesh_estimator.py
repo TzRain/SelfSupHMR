@@ -66,7 +66,6 @@ def custom_renderer(predictions,affined_img):
 
 def save_img(img,path_folders='affined_image',title=None):
     # not need it any more
-    return 
 
     if title is None:
         now = datetime.now()
@@ -303,28 +302,30 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         if self.neck is not None:
             features = self.neck(features)
 
-        predictions,NCE_loss = self.head(features,affined_img = affined_imgs,is_train = True)
+        predictions = self.head(features)
 
-        losses={}
+        # predictions,NCE_loss = self.head(features,affined_imgs = affined_imgs,is_training = True)
 
-        losses['NCE_loss'] = NCE_loss
+        # losses={}
 
-        # render_tensor =  custom_renderer(predictions,affined_imgs)
+        # losses['NCE_loss'] = NCE_loss
 
-        # render_tensor_de = render_tensor.detach()
+        render_tensor =  custom_renderer(predictions,affined_imgs)
+
+        render_tensor_de = render_tensor.detach()
         
-        # save_img(render_tensor_de,"rendered_image")
+        save_img(render_tensor_de,"rendered_image")
 
-        # targets = self.prepare_targets(data_batch)
+        targets = self.prepare_targets(data_batch)
 
         # optimize discriminator (if have)
         if self.disc is not None:
             self.optimize_discrinimator(predictions, data_batch, optimizer)
 
-        # if self.registration is not None:
-        #     targets = self.run_registration(predictions, targets)
+        if self.registration is not None:
+            targets = self.run_registration(predictions, targets)
 
-        # losses = self.compute_losses(predictions, targets)
+        losses = self.compute_losses(predictions, targets)
         
         # optimizer generator part
         if self.disc is not None:

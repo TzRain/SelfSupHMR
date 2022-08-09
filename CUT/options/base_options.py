@@ -11,14 +11,18 @@ class BaseOptions():
 
     It also implements several helper functions such as parsing, printing, and saving the options.
     It also gathers additional options defined in <modify_commandline_options> functions in both dataset class and model class.
+    --dataroot ./datasets/grumpifycat --name grumpycat_FastCUT --CUT_mode FastCUT
+    --dataroot ./datasets/grumpifycat --name grumpycat_CUT --CUT_mode CUT
     """
 
     def __init__(self, cmd_line=None):
         """Reset the class; indicates the class hasn't been initailized"""
         self.initialized = False
         self.cmd_line = None
-        if cmd_line is not None:
-            self.cmd_line = cmd_line.split()
+        # if cmd_line is not None:
+        #     self.cmd_line = cmd_line.split()
+        self.cmd_line = "--dataroot ./datasets/grumpifycat --name grumpycat_FastCUT --CUT_mode FastCUT".split()
+        
 
     def initialize(self, parser):
         """Define the common options that are used in both training and test."""
@@ -92,6 +96,7 @@ class BaseOptions():
         model_name = opt.model
         model_option_setter = models.get_option_setter(model_name)
         parser = model_option_setter(parser, self.isTrain)
+
         if self.cmd_line is None:
             opt, _ = parser.parse_known_args()  # parse again with new defaults
         else:
@@ -104,6 +109,7 @@ class BaseOptions():
 
         # save and return the parser
         self.parser = parser
+        
         if self.cmd_line is None:
             return parser.parse_args()
         else:
