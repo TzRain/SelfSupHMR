@@ -266,7 +266,7 @@ class SMPLRenderer(BaseRenderer):
         if self.return_tensor:
 
             if images is not None:
-                rendered_map = torch.tensor(output_images)
+                rendered_map = torch.tensor(output_images) #[B=10,224,224,3]
             else:
                 rendered_map = rendered_tensor
 

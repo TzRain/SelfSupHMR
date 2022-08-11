@@ -58,7 +58,9 @@ def custom_renderer(results,save_image=True):
         return_tensor = True,
         no_grad = False,
         palette='segmentation',
-        read_frames_batch=True)
+        read_frames_batch=False,
+        batch_size = affined_img[0].shape[0],
+    )
     tensors_de = tensors.detach()
 
     if save_image == True:
