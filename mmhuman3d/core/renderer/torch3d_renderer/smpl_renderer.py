@@ -240,9 +240,12 @@ class SMPLRenderer(BaseRenderer):
             output_images = output_images * (
                 1 - pointcloud_mask) + pointcloud_mask * pointcloud_bgr
 
-        output_images = tensor2array(output_images)
-        if self.output_path is not None:
+        if self.return_tensor:
+            output_images = output_images * 256 
+        else:
+            output_images = tensor2array(output_images)
 
+        if self.output_path is not None:
             for frame_idx, real_idx in enumerate(indexes):
                 folder = self.temp_path if self.temp_path is not None else\
                     self.output_path
@@ -265,8 +268,11 @@ class SMPLRenderer(BaseRenderer):
         # return
         if self.return_tensor:
 
-            if images is not None:
-                rendered_map = torch.tensor(output_images) #[B=10,224,224,3]
+            if images is not None:#[B=10,224,224,3]
+                if self.return_tensor:
+                    rendered_map = output_images
+                else:
+                    rendered_map = torch.tensor(output_images) 
             else:
                 rendered_map = rendered_tensor
 
