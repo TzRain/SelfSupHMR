@@ -177,21 +177,21 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         losses['NCE_loss'] = NCE_loss
 
-        targets = self.prepare_targets(data_batch)
+        # targets = self.prepare_targets(data_batch)
 
         # optimize discriminator (if have)
         if self.disc is not None:
             self.optimize_discrinimator(predictions, data_batch, optimizer)
 
-        if self.registration is not None:
-            targets = self.run_registration(predictions, targets)
+        # if self.registration is not None:
+        #     targets = self.run_registration(predictions, targets)
 
-        losses = self.compute_losses(predictions, targets)
+        # losses = self.compute_losses(predictions, targets)
         
         # optimizer generator part
-        if self.disc is not None:
-            adv_loss = self.optimize_generator(predictions)
-            losses.update(adv_loss)
+        # if self.disc is not None:
+        #     adv_loss = self.optimize_generator(predictions)
+        #     losses.update(adv_loss)
 
         loss, log_vars = self._parse_losses(losses)
         for key in optimizer.keys():

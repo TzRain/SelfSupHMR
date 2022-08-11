@@ -3,19 +3,25 @@
 import cv2
 import torch
 import numpy as np
+
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
 
 from datetime import datetime
 from mmhuman3d.utils.transforms import rotmat_to_aa
+from mmhuman3d.models.body_models.builder import build_body_model
 
-def custom_renderer(results,save_image=True):
+
+body_model_config = dict(model_path="data/body_models/smpl", type='smpl')
+
+body_model = build_body_model(body_model_config)
+
+def custom_renderer(results, save_image=False, body_model = body_model):
     smpl_poses = results['pred_pose']
     smpl_betas = results['pred_betas']
     pred_cams = results['pred_cam']
     affined_img = results['affined_img']
 
-    print("run custom renderer")
-
+    # print("run custom renderer")
     # smpl_poses = np.array(smpl_poses)
     # smpl_betas = np.array(smpl_betas)
     # pred_cams = np.array(pred_cams)
@@ -24,7 +30,6 @@ def custom_renderer(results,save_image=True):
     if smpl_poses.shape[1:] == (24, 3, 3):
         smpl_poses = rotmat_to_aa(smpl_poses)
 
-    body_model_config = dict(model_path="data/body_models/", type='smpl')
     tensors = visualize_smpl.visualize_smpl_hmr(
         poses=smpl_poses.reshape(-1, 24 * 3),
         betas=smpl_betas,
@@ -32,16 +37,16 @@ def custom_renderer(results,save_image=True):
         render_choice='hq',
         resolution=affined_img[0].shape[:2],
         image_array=affined_img,
-        body_model_config=body_model_config,
+        body_model=body_model,
         return_tensor = True,
         no_grad = False,
         palette='segmentation',
         read_frames_batch=False,
-        batch_size = affined_img[0].shape[0],
+        batch_size = affined_img[0].shape[0], 
     )
-    tensors_de = tensors.detach()
-
-    if save_image == True:
+    
+    if save_image:
+        tensors_de = tensors.detach()
         save_img(affined_img,path_folders='affined_image')
         save_img(tensors_de,path_folders='rendered_image')
 

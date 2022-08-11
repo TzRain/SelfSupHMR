@@ -73,7 +73,7 @@
         "--no-validate"
       ]
     },
-    // python tools/train.py configs/custom/resnet50_hmr_render.py --work-dir work_dirs/hmr-try --gpus 1 --no-validate
+    // python tools/train.py configs/custom/resnet50_hmr_render.py --work-dir work_dirs/hmr-render --gpus 1 --no-validate
     {
       "name": "Train resnet50_hmr_render",
       "type": "python",

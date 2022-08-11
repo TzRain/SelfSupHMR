@@ -113,7 +113,7 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=32,
+    samples_per_gpu=16,
     workers_per_gpu=1,
     train=dict(
         type='AdversarialDataset',
@@ -142,27 +142,27 @@ data = dict(
                     pipeline=train_pipeline,
                     convention='smpl_54',
                     ann_file='lsp_train.npz'),
-                # dict(
-                #     type=dataset_type,
-                #     dataset_name='lspet',
-                #     data_prefix='data',
-                #     pipeline=train_pipeline,
-                #     convention='smpl_54',
-                #     ann_file='lspet_train.npz'),
-                # dict(
-                #     type=dataset_type,
-                #     dataset_name='mpii',
-                #     data_prefix='data',
-                #     pipeline=train_pipeline,
-                #     convention='smpl_54',
-                #     ann_file='mpii_train.npz'),
-                # dict(
-                #     type=dataset_type,
-                #     dataset_name='coco',
-                #     data_prefix='data',
-                #     pipeline=train_pipeline,
-                #     convention='smpl_54',
-                #     ann_file='coco_2014_train.npz'),
+                dict(
+                    type=dataset_type,
+                    dataset_name='lspet',
+                    data_prefix='data',
+                    pipeline=train_pipeline,
+                    convention='smpl_54',
+                    ann_file='lspet_train.npz'),
+                dict(
+                    type=dataset_type,
+                    dataset_name='mpii',
+                    data_prefix='data',
+                    pipeline=train_pipeline,
+                    convention='smpl_54',
+                    ann_file='mpii_train.npz'),
+                dict(
+                    type=dataset_type,
+                    dataset_name='coco',
+                    data_prefix='data',
+                    pipeline=train_pipeline,
+                    convention='smpl_54',
+                    ann_file='coco_2014_train.npz'),
             ],
             partition=[0.35, 0.15, 0.1, 0.10, 0.10, 0.2],
         ),

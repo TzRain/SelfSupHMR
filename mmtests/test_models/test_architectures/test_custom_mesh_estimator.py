@@ -18,11 +18,14 @@ from mmhuman3d.utils.logger import get_root_logger
 
 import torch.distributed as dist
 
-def test_custom_mesh_estimator():
+def test_custom_mesh_estimator(load_pretrain = True):
     
     config_file = 'configs/custom/resnet50_hmr_render.py'
     cfg = Config.fromfile(config_file)
     model = build_architecture(cfg.model)
+    if load_pretrain == False:
+        return model
+
     if cfg.model.type == 'CustomImageBodyModelEstimator':
         with open("./work_dirs/custom_render/custom_mesh_emstimator_model_namespace.txt","w") as f:
             for name, params in model.named_parameters():

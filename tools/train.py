@@ -131,7 +131,7 @@ def main():
 
     
     if cfg.model.type == 'CustomImageBodyModelEstimator':
-        model = test_custom_mesh_estimator()
+        model = test_custom_mesh_estimator(load_pretrain=False)
     else:
         model = build_architecture(cfg.model)
         model.init_weights()   

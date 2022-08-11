@@ -1,9 +1,7 @@
 
 import torch
 import torch.nn as nn
-import cv2
 import numpy as np
-
 from datetime import datetime
 from mmcv.runner.base_module import BaseModule
 from mmhuman3d.core.visualization import visualize_smpl
@@ -67,6 +65,8 @@ class CUTHMRHead(BaseModule):
         self.criterionNCE = []
         for nce_layer in self.nce_layers:
             self.criterionNCE.append(PatchNCELoss(opt).to(self.device))
+        
+        self.save_image_time = datetime.now()
     
     def calculate_NCE_loss(self, src, tgt): #[B,3,256,256] [B,3,256,256]
         # return 0
@@ -148,17 +148,26 @@ class CUTHMRHead(BaseModule):
         if not is_training:
             return predictions
 
+        affined_img = torch.Tensor(affined_img).to(predictions['pred_pose'].device)
+
         result = {}
         result['pred_pose'] = predictions['pred_pose']
         result['pred_betas'] = predictions['pred_shape']
         result['pred_cam'] = predictions['pred_cam']
-        result['affined_img'] = torch.Tensor(affined_img).to(predictions['pred_pose'].device)
-        
-        render_tensor =  custom_renderer(result)
+        result['affined_img'] = affined_img
 
-        # NCE_loss = self.calculate_NCE_loss(tensors,torch.Tensor(affined_img).to(tensors.device))
-        NCE_loss = None
-        
+
+        now_time = datetime.now()
+
+        save_image = False
+
+        if (now_time - self.save_image_time).total_seconds() > 10 * 60:
+            save_image = True
+            self.save_image_time = now_time
+
+        tensors =  custom_renderer(result,save_image=save_image)
+
+        NCE_loss = self.calculate_NCE_loss(tensors,affined_img)
         return predictions , NCE_loss
 
 
