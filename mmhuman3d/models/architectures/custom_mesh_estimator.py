@@ -33,63 +33,6 @@ import numpy as np
 
 # see perspective_projection() conver_verts_to_cam_coord() project_points()
 
-def custom_renderer(predictions,affined_img):
-    smpl_poses = predictions['pred_pose']
-    smpl_betas = predictions['pred_shape']
-    pred_cams = predictions['pred_cam']
-    affined_imgs = np.array(affined_img)
-
-    print("run custom renderer")
-
-    if smpl_poses.shape[1:] == (24, 3, 3):
-        smpl_poses = rotmat_to_aa(smpl_poses)
-    
-
-    body_model_config = dict(model_path="data/body_models/", type='smpl')
-    tensors = visualize_smpl.visualize_smpl_hmr(
-        poses=smpl_poses.reshape(-1, 24 * 3),
-        betas=smpl_betas,
-        cam_transl=pred_cams,
-        # output_path='vis_results/custom_demo',
-        render_choice='hq',
-        resolution=affined_imgs[0].shape[:2],
-        image_array=affined_imgs,
-        body_model_config=body_model_config,
-        # overwrite=True,
-        return_tensor = True,
-        no_grad = False,
-        palette='segmentation',
-        read_frames_batch=True)
-    return tensors
-
-
-
-def save_img(img,path_folders='affined_image',title=None):
-    # not need it any more
-
-    if title is None:
-        now = datetime.now()
-        title = now.strftime("%Y-%m-%d %H:%M:%S")
-    if isinstance(img,list):
-        for i,im in enumerate(img):
-            print(f"write vis_results/{path_folders}/{title}-{i}.jpg")
-            cv2.imwrite(f"vis_results/{path_folders}/{title}-{i}.jpg",im)
-    else:
-        if isinstance(img,torch.Tensor):
-            img = img.cpu().numpy()
-
-        if img.ndim == 3:    
-            print(f"write vis_results/{path_folders}/{title}.jpg")
-            cv2.imwrite(f"vis_results/{path_folders}/{title}.jpg",img)
-        
-        elif img.ndim == 4:    
-            for i in range(img.shape[0]):
-                im  = img[i]
-                print(f"write vis_results/{path_folders}/{title}-{i}.jpg")
-                cv2.imwrite(f"vis_results/{path_folders}/{title}-{i}.jpg",im)
-        else :
-            print("unexcepted img ndim")
-
 
 def set_requires_grad(nets, requires_grad=False):
     """Set requies_grad for all the networks.
@@ -194,78 +137,6 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         set_requires_grad(self.body_model_test, False)
 
 
-    def train_step_org(self, data_batch, optimizer, **kwargs):
-        """Train step function.
-
-        In this function, the detector will finish the train step following
-        the pipeline:
-        1. get fake and real SMPL parameters
-        2. optimize discriminator (if have)
-        3. optimize generator
-        If `self.train_cfg.disc_step > 1`, the train step will contain multiple
-        iterations for optimizing discriminator with different input data and
-        only one iteration for optimizing generator after `disc_step`
-        iterations for discriminator.
-        Args:
-            data_batch (torch.Tensor): Batch of data as input.
-            optimizer (dict[torch.optim.Optimizer]): Dict with optimizers for
-                generator and discriminator (if have).
-        Returns:
-            outputs (dict): Dict with loss, information for logger,
-            the number of samples.
-        """
-
-        img_metas = data_batch['img_metas']
-
-        affined_imgs = [item['affined_img'] for item in img_metas]
-        
-        save_img(affined_imgs)
-
-        if self.backbone is not None:
-            img = data_batch['img']
-            features = self.backbone(img)
-        else:
-            features = data_batch['features']
-
-        if self.neck is not None:
-            features = self.neck(features)
-
-        predictions = self.head(features)
-
-        render_tensor =  custom_renderer(predictions,affined_imgs)
-
-        render_tensor_de = render_tensor.detach()
-        
-        save_img(render_tensor_de,"rendered_image")
-
-        targets = self.prepare_targets(data_batch)
-
-        # optimize discriminator (if have)
-        if self.disc is not None:
-            self.optimize_discrinimator(predictions, data_batch, optimizer)
-
-        if self.registration is not None:
-            targets = self.run_registration(predictions, targets)
-
-        losses = self.compute_losses(predictions, targets)
-        # optimizer generator part
-        if self.disc is not None:
-            adv_loss = self.optimize_generator(predictions)
-            losses.update(adv_loss)
-
-        loss, log_vars = self._parse_losses(losses)
-        for key in optimizer.keys():
-            optimizer[key].zero_grad()
-        loss.backward()
-        for key in optimizer.keys():
-            optimizer[key].step()
-
-        outputs = dict(
-            loss=loss,
-            log_vars=log_vars,
-            num_samples=len(next(iter(data_batch.values()))))
-        return outputs
-    
     def train_step(self, data_batch, optimizer, **kwargs):
         """Train step function.
 
@@ -289,10 +160,8 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         img_metas = data_batch['img_metas']
 
-        affined_imgs = [item['affined_img'] for item in img_metas]
+        affined_img = [item['affined_img'] for item in img_metas]
         
-        # save_img(affined_imgs)
-
         if self.backbone is not None:
             img = data_batch['img']
             features = self.backbone(img)
@@ -302,19 +171,11 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         if self.neck is not None:
             features = self.neck(features)
 
-        predictions = self.head(features)
+        predictions,NCE_loss = self.head(features,affined_img = affined_img,is_training = True)
 
-        # predictions,NCE_loss = self.head(features,affined_imgs = affined_imgs,is_training = True)
+        losses={}
 
-        # losses={}
-
-        # losses['NCE_loss'] = NCE_loss
-
-        render_tensor =  custom_renderer(predictions,affined_imgs)
-
-        render_tensor_de = render_tensor.detach()
-        
-        save_img(render_tensor_de,"rendered_image")
+        losses['NCE_loss'] = NCE_loss
 
         targets = self.prepare_targets(data_batch)
 
@@ -929,10 +790,6 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
         affined_img = [item['affined_img'] for item in img_metas]
 
         predictions = self.head(features)
-
-        custom_renderer_tensor = custom_renderer(predictions,all_preds)
-
-        save_img(custom_renderer_tensor,'demo')
 
         pred_pose = predictions['pred_pose']
         pred_betas = predictions['pred_shape']

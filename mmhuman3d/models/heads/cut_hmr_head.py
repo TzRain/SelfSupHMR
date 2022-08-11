@@ -13,61 +13,8 @@ from mmhuman3d.utils.transforms import rotmat_to_aa
 from CUT.models import networks
 from CUT.models.patchnce import PatchNCELoss
 from CUT.options.train_options import TrainOptions
+from mmhuman3d.utils.custom import custom_renderer
 
-def save_img(img,path_folders='affined_image',title=None):
-    # not need it any more
-    # return 
-    if title is None:
-        now = datetime.now()
-        title = now.strftime("%H:%M:%S")
-    if isinstance(img,list):
-        for i,im in enumerate(img):
-            print(f"write vis_results/{path_folders}/{title}-{i}.jpg")
-            cv2.imwrite(f"vis_results/{path_folders}/{title}-{i}.jpg",im)
-    else:
-        if isinstance(img,torch.Tensor):
-            img = img.cpu().numpy()
-
-        if img.ndim == 3:    
-            print(f"write vis_results/{path_folders}/{title}.jpg")
-            cv2.imwrite(f"vis_results/{path_folders}/{title}.jpg",img)
-        
-        elif img.ndim == 4:    
-            for i in range(img.shape[0]):
-                im  = img[i]
-                print(f"write vis_results/{path_folders}/{title}-{i}.jpg")
-                cv2.imwrite(f"vis_results/{path_folders}/{title}-{i}.jpg",im)
-        else :
-            print("unexcepted img ndim")
-
-def custom_renderer(predictions,affined_img):
-    smpl_poses = predictions['pred_pose']
-    smpl_betas = predictions['pred_shape']
-    pred_cams = predictions['pred_cam']
-    affined_imgs = np.array(affined_img)
-
-    print("run custom renderer")
-
-    if smpl_poses.shape[1:] == (24, 3, 3):
-        smpl_poses = rotmat_to_aa(smpl_poses)
-    
-
-    body_model_config = dict(model_path="data/body_models/", type='smpl')
-    
-    tensors = visualize_smpl.visualize_smpl_hmr(
-        poses=smpl_poses.reshape(-1, 24 * 3),
-        betas=smpl_betas,
-        cam_transl=pred_cams,
-        render_choice='hq',
-        resolution=affined_imgs[0].shape[:2],
-        image_array=affined_imgs,
-        body_model_config=body_model_config,
-        return_tensor = True,
-        no_grad = False,
-        palette='segmentation',
-        read_frames_batch=True)
-
-    return tensors
 
 class CUTHMRHead(BaseModule):
     def __init__(self,
@@ -146,7 +93,7 @@ class CUTHMRHead(BaseModule):
                 init_shape=None,
                 init_cam=None,
                 is_training = False,
-                affined_imgs = None,
+                affined_img = None,
                 n_iter=3):
 
         # hmr head only support one layer feature
@@ -191,20 +138,23 @@ class CUTHMRHead(BaseModule):
             pred_rotmat = pred_rotmat.view(B, T, 24, 3, 3)
             pred_shape = pred_shape.view(B, T, 10)
             pred_cam = pred_cam.view(B, T, 3)
+        
         predictions = {
             'pred_pose': pred_rotmat,
             'pred_shape': pred_shape,
-            'pred_cam': pred_cam
+            'pred_cam': pred_cam,
         }
 
         if not is_training:
             return predictions
-        
-        render_tensor =  custom_renderer(predictions,affined_imgs)
 
-        render_tensor_de = render_tensor.detach()
+        result = {}
+        result['pred_pose'] = predictions['pred_pose']
+        result['pred_betas'] = predictions['pred_shape']
+        result['pred_cam'] = predictions['pred_cam']
+        result['affined_img'] = torch.Tensor(affined_img).to(predictions['pred_pose'].device)
         
-        save_img(render_tensor_de,"rendered_image")
+        render_tensor =  custom_renderer(result)
 
         # NCE_loss = self.calculate_NCE_loss(tensors,torch.Tensor(affined_img).to(tensors.device))
         NCE_loss = None
