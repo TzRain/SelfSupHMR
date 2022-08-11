@@ -64,7 +64,7 @@ def custom_renderer(results,save_image=True):
     tensors_de = tensors.detach()
 
     if save_image == True:
-        save_img(affined_img,path_folders='affined_image')     
+        save_img(affined_img,path_folders='affined_image')
         save_img(tensors_de,path_folders='rendered_image')
 
     return tensors
