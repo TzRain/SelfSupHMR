@@ -52,14 +52,14 @@ def custom_renderer(results):
     smpl_poses = results['smpl_pose']
     smpl_betas = results['smpl_beta']
     pred_cams = results['camera']
-    affined_imgs = results['affined_img']
+    affined_img = results['affined_img']
 
     print("run custom renderer")
 
     smpl_poses = np.array(smpl_poses)
     smpl_betas = np.array(smpl_betas)
     pred_cams = np.array(pred_cams)
-    affined_imgs = np.array(affined_imgs)
+    affined_img = np.array(affined_img)
 
     if smpl_poses.shape[1:] == (24, 3, 3):
         smpl_poses = rotmat_to_aa(smpl_poses)
@@ -72,8 +72,8 @@ def custom_renderer(results):
         cam_transl=pred_cams,
         output_path='vis_results/custom_demo',
         render_choice='hq',
-        resolution=affined_imgs[0].shape[:2],
-        image_array=affined_imgs,
+        resolution=affined_img[0].shape[:2],
+        image_array=affined_img,
         body_model_config=body_model_config,
         overwrite=True,
         return_tensor = True,
@@ -237,7 +237,7 @@ def single_person_with_mmdet(args,load_human_data=False):
     #     args.mesh_reg_checkpoint,
     #     device=args.device.lower())
 
-    pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_imgs= \
+    pred_cams, verts, smpl_poses, smpl_betas, bboxes_xyxy, affined_img= \
         [], [], [], [], [], []
 
     frame_id_list, result_list = \
