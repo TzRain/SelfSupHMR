@@ -4,15 +4,15 @@ import torch.nn as nn
 import numpy as np
 from datetime import datetime
 from mmcv.runner.base_module import BaseModule
-from mmhuman3d.core.visualization import visualize_smpl
 from mmhuman3d.utils.geometry import rot6d_to_rotmat
-from mmhuman3d.utils.transforms import rotmat_to_aa
 
 from CUT.models import networks
 from CUT.models.patchnce import PatchNCELoss
 from CUT.options.train_options import TrainOptions
 from mmhuman3d.utils.custom import custom_renderer
 
+
+# convert all need opt config into CUTHMHead 
 
 class CUTHMRHead(BaseModule):
     def __init__(self,
