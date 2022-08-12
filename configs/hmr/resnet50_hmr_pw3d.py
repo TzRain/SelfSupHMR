@@ -163,7 +163,7 @@ data = dict(
                     convention='smpl_54',
                     ann_file='coco_2014_train.npz'),
             ],
-            partition=[0.35, 0.15, 0.1, 0.10, 0.10, 0.2],
+            partition=[0.35, 0.15, 0.10, 0.10, 0.10, 0.20],
         ),
         adv_dataset=dict(
             type='MeshDataset',

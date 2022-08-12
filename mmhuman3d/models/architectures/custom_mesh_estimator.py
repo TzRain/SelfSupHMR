@@ -1,8 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from turtle import tilt
 from typing import Optional, Tuple, Union
-from importlib_metadata import metadata
-from sklearn import ensemble
 
 import torch
 import torch.nn.functional as F
@@ -10,14 +7,12 @@ import torch.nn.functional as F
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
 from mmhuman3d.core.conventions.keypoints_mapping import get_keypoint_idx
 from mmhuman3d.models.utils import FitsDict
-from mmhuman3d.utils.demo_utils import convert_bbox_to_intrinsic, convert_kp2d_to_bbox, get_default_hmr_intrinsic
 from mmhuman3d.utils.geometry import (
     batch_rodrigues,
     estimate_translation,
     project_points,
     rotation_matrix_to_angle_axis,
 )
-from mmhuman3d.utils.transforms import rotmat_to_aa
 from ..backbones.builder import build_backbone
 from ..body_models.builder import build_body_model
 from ..discriminators.builder import build_discriminator
@@ -26,12 +21,6 @@ from ..losses.builder import build_loss
 from ..necks.builder import build_neck
 from ..registrants.builder import build_registrant
 from .base_architecture import BaseArchitecture
-from datetime import datetime
-import cv2
-import numpy as np
-
-
-# see perspective_projection() conver_verts_to_cam_coord() project_points()
 
 
 def set_requires_grad(nets, requires_grad=False):
@@ -157,11 +146,6 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             outputs (dict): Dict with loss, information for logger,
             the number of samples.
         """
-
-        img_metas = data_batch['img_metas']
-
-        affined_img = [item['affined_img'] for item in img_metas]
-        
         if self.backbone is not None:
             img = data_batch['img']
             features = self.backbone(img)
@@ -171,13 +155,12 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         if self.neck is not None:
             features = self.neck(features)
 
-        # predictions,NCE_loss = self.head(features,affined_img = affined_img,is_training = True)
         predictions = self.head(features)
-
+        img_metas = data_batch['img_metas']
+        affined_img = [item['affined_img'] for item in img_metas]
+        # predictions,NCE_loss = self.head(features,affined_img = affined_img,is_training = True)
         # losses={}
-
         # losses['NCE_loss'] = NCE_loss
-
         targets = self.prepare_targets(data_batch)
 
         # optimize discriminator (if have)
@@ -188,7 +171,6 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             targets = self.run_registration(predictions, targets)
 
         losses = self.compute_losses(predictions, targets)
-        
         # optimizer generator part
         if self.disc is not None:
             adv_loss = self.optimize_generator(predictions)
@@ -636,8 +618,6 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         loss = self.loss_segm_mask(pred_heatmap_valid, gt_sem_mask)
         return loss
-    
-    
 
     def compute_losses(self, predictions: dict, targets: dict):
         """Compute losses."""
@@ -787,11 +767,7 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
 
         if self.neck is not None:
             features = self.neck(features)
-
-        affined_img = [item['affined_img'] for item in img_metas]
-
         predictions = self.head(features)
-
         pred_pose = predictions['pred_pose']
         pred_betas = predictions['pred_shape']
         pred_cam = predictions['pred_cam']
@@ -800,10 +776,11 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
             body_pose=pred_pose[:, 1:],
             global_orient=pred_pose[:, 0].unsqueeze(1),
             pose2rot=False)
+
         pred_vertices = pred_output['vertices']
         pred_keypoints_3d = pred_output['joints']
         all_preds = {}
-        all_preds['affined_img'] = affined_img
+        all_preds['affined_img'] = [item['affined_img'] for item in img_metas]
         all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
         all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
         all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
