@@ -1,23 +1,16 @@
-
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from datetime import datetime
 from mmcv.runner.base_module import BaseModule
-from mmhuman3d.core.visualization import visualize_smpl
 from mmhuman3d.utils.geometry import rot6d_to_rotmat
-from mmhuman3d.utils.transforms import rotmat_to_aa
-
 from CUT.models import networks
 from CUT.models.patchnce import PatchNCELoss
 from CUT.options.train_options import TrainOptions
 from mmhuman3d.utils.custom import custom_renderer
-
-
 class CUTHMRHead(BaseModule):
     def __init__(self,
                  feat_dim,
-                #  opt=None, #netG opt
                  smpl_mean_params=None,
                  npose=144,
                  nbeta=10,
@@ -47,25 +40,20 @@ class CUTHMRHead(BaseModule):
             init_shape = torch.from_numpy(
                 mean_params['shape'][:].astype('float32')).unsqueeze(0)
             init_cam = torch.from_numpy(mean_params['cam']).unsqueeze(0)
-
         self.register_buffer('init_pose', init_pose)
         self.register_buffer('init_shape', init_shape)
         self.register_buffer('init_cam', init_cam)
 
         self.opt = TrainOptions().parse()
         opt = self.opt
-
         self.gpu_ids = opt.gpu_ids
         self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if self.gpu_ids else torch.device('cpu')
         self.netG = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, opt.normG, not opt.no_dropout, opt.init_type, opt.init_gain, opt.no_antialias, opt.no_antialias_up, self.gpu_ids, opt)
         self.netF = networks.define_F(opt.input_nc, opt.netF, opt.normG, not opt.no_dropout, opt.init_type, opt.init_gain, opt.no_antialias, self.gpu_ids, opt)
-        
         self.nce_layers = [int(i) for i in opt.nce_layers.split(',')]
-        
         self.criterionNCE = []
         for nce_layer in self.nce_layers:
             self.criterionNCE.append(PatchNCELoss(opt).to(self.device))
-        
         self.save_image_time = datetime.now()
     
     def calculate_NCE_loss(self, src, tgt): #[B,3,256,256] [B,3,256,256]
@@ -138,11 +126,10 @@ class CUTHMRHead(BaseModule):
             pred_rotmat = pred_rotmat.view(B, T, 24, 3, 3)
             pred_shape = pred_shape.view(B, T, 10)
             pred_cam = pred_cam.view(B, T, 3)
-        
         predictions = {
             'pred_pose': pred_rotmat,
             'pred_shape': pred_shape,
-            'pred_cam': pred_cam,
+            'pred_cam': pred_cam
         }
 
         if not is_training:
