@@ -16,10 +16,13 @@ body_model_config = dict(model_path="data/body_models/smpl", type='smpl')
 body_model = build_body_model(body_model_config)
 
 def custom_renderer(results, save_image=False, body_model = body_model):
+    scale = results['scale']
+    center = results['center']
     smpl_poses = results['pred_pose']
     smpl_betas = results['pred_betas']
     pred_cams = results['pred_cam']
     affined_img = results['affined_img']
+    resolution=affined_img[0].shape[:2]
 
     # print("run custom renderer")
     # smpl_poses = np.array(smpl_poses)
@@ -35,7 +38,7 @@ def custom_renderer(results, save_image=False, body_model = body_model):
         betas=smpl_betas,
         cam_transl=pred_cams,
         render_choice='hq',
-        resolution=affined_img[0].shape[:2],
+        resolution=resolution,
         image_array=affined_img,
         body_model=body_model,
         return_tensor = True,

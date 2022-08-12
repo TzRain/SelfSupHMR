@@ -113,7 +113,7 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=16,
+    samples_per_gpu=128,
     workers_per_gpu=1,
     train=dict(
         type='AdversarialDataset',

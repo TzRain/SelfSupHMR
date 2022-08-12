@@ -157,8 +157,8 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         predictions = self.head(features)
         img_metas = data_batch['img_metas']
-        affined_img = [item['affined_img'] for item in img_metas]
-        # predictions,NCE_loss = self.head(features,affined_img = affined_img,is_training = True)
+        predictions = self.head(features)
+        # predictions,NCE_loss = self.head(features,img_metas = img_metas,is_training = True)
         # losses={}
         # losses['NCE_loss'] = NCE_loss
         targets = self.prepare_targets(data_batch)
@@ -780,6 +780,9 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
         pred_vertices = pred_output['vertices']
         pred_keypoints_3d = pred_output['joints']
         all_preds = {}
+        # 'center', 'scale', 'rotation'
+        all_preds['scale'] = [item['scale'] for item in img_metas]
+        all_preds['center'] = [item['center'] for item in img_metas]
         all_preds['affined_img'] = [item['affined_img'] for item in img_metas]
         all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
         all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
