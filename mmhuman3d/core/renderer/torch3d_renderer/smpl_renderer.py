@@ -195,16 +195,16 @@ class SMPLRenderer(BaseRenderer):
         bgrs = rgb2bgr(rgbs)
 
         # write temp images for the output video
+
+        if images is not None:
+            output_images = bgrs * valid_masks * self.alpha + \
+                images * valid_masks * (
+                    1 - self.alpha) + (1 - valid_masks) * images
+
+        else:
+            output_images = bgrs
+
         if self.output_path is not None:
-
-            if images is not None:
-                output_images = bgrs * valid_masks * self.alpha + \
-                    images * valid_masks * (
-                        1 - self.alpha) + (1 - valid_masks) * images
-
-            else:
-                output_images = bgrs
-
             if self.plot_kps:
 
                 joints = joints.to(self.device)
@@ -265,7 +265,9 @@ class SMPLRenderer(BaseRenderer):
         if self.return_tensor:
 
             if images is not None:
-                rendered_map = torch.tensor(output_images)
+                if not isinstance(output_images,torch.Tensor):
+                    output_images = torch.tensor(output_images)
+                rendered_map = output_images
             else:
                 rendered_map = rendered_tensor
 

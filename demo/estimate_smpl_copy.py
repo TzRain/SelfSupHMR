@@ -1,4 +1,5 @@
 import os
+import cv2
 import os.path as osp
 import shutil
 import warnings
@@ -61,10 +62,8 @@ def diff_render_test(args,frames_iter):
         if isinstance(v,torch.Tensor):
             print(f"{k} shape:{v.shape} requires_grad:{v.requires_grad}")
 
-    dtype = results['vertices'].dtype
-
     focal_length = 5000
-    img_res = 244
+    img_res = 224
     camera_center = torch.zeros([batch_size, 2])
 
     R = torch.eye(3).unsqueeze(0).expand(batch_size, -1, -1)
@@ -103,8 +102,15 @@ def diff_render_test(args,frames_iter):
         palette = 'segmentation',
         resolution = img_res,
         return_tensor = True,
-        image_array = batch_data['img']
+        batch_size = batch_size,
+        no_grad=False,
+        image_array = batch_data['img'].permute(0,2,3,1)
     )
+
+    render_tensor_de = render_tensor.detach().cpu().numpy() * 256
+
+    for i,img in enumerate(render_tensor_de):
+        cv2.imwrite(f"{args.show_path}{i}.jpg",img)
 
     print(f"{render_tensor} shape:{render_tensor.shape} requires_grad:{render_tensor.requires_grad}")
 
