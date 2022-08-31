@@ -16,7 +16,7 @@
             "name": "demo",
             "type": "python",
             "request": "launch",
-            "program": "demo/estimate_smpl_copy.py",
+            "program": "demo/estimate_smpl_custom_process.py",
             "console": "integratedTerminal",
             "args": [
                 "configs/sshmr/sshmr.py",

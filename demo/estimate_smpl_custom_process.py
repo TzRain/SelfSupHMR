@@ -92,20 +92,33 @@ def diff_render_test(args,frames_iter):
 
     body_model = build_body_model(body_model_config).to(device)
 
-    render_tensor = render_smpl(
-        verts = results['vertices'],
-        body_model=body_model,
-        K = K,
-        R = R,
-        T = T,
-        render_choice = 'hq',
-        palette = 'segmentation',
-        resolution = img_res,
-        return_tensor = True,
-        batch_size = batch_size,
-        no_grad=False,
-        image_array = batch_data['img'].permute(0,2,3,1)
-    )
+    # render_tensor = render_smpl(
+    #     verts = results['vertices'],
+    #     body_model=body_model,
+    #     K = K,
+    #     R = R,
+    #     T = T,
+    #     render_choice = 'hq',
+    #     palette = 'segmentation',
+    #     resolution = img_res,
+    #     return_tensor = True,
+    #     batch_size = batch_size,
+    #     no_grad=False,
+    #     image_array = batch_data['img'].permute(0,2,3,1)
+    # )
+    visualize_smpl_hmr(
+            poses=smpl_poses.reshape(-1, 24 * 3),
+            betas=smpl_betas,
+            cam_transl=pred_cams,
+            bbox=bboxes_xyxy,
+            output_path=args.show_path,
+            render_choice=args.render_choice,
+            resolution=frames_iter[0].shape[:2],
+            origin_frames=frames_folder,
+            body_model_config=body_model_config,
+            overwrite=True,
+            palette=args.palette,
+            read_frames_batch=True)
 
     render_tensor_de = render_tensor.detach().cpu().numpy() * 256
 
@@ -173,7 +186,7 @@ if __name__ == '__main__':
     main(args)
 
 """
-python demo/estimate_smpl_copy.py \
+python demo/estimate_smpl_custom_process.py \
     configs/sshmr/sshmr.py \
     data/checkpoints/resnet50_hmr_pw3d.pth \
     --input_path  demo/resources/image \
