@@ -1026,7 +1026,8 @@ def render_smpl(
             resolution=render_resolution))
 
     if image_array is not None:
-        image_array = torch.Tensor(image_array)
+        if not isinstance(image_array,torch.Tensor):
+            image_array = torch.Tensor(image_array)
         image_array = align_input_to_padded(
             image_array, ndim=4, batch_size=num_frames, padding_mode='ones')
     # prepare the render data.

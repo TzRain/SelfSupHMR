@@ -16,14 +16,17 @@ from mmhuman3d.apis import (
     inference_video_based_model,
     init_model,
 )
-from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_hmr
+from mmhuman3d.core.visualization.visualize_smpl import render_smpl, visualize_smpl_hmr
 from mmhuman3d.data.data_structures.human_data import HumanData
+from mmhuman3d.models.body_models.builder import build_body_model
 from mmhuman3d.utils.demo_utils import prepare_frames
 from mmhuman3d.utils.ffmpeg_utils import array_to_images
 from mmhuman3d.utils.transforms import rotmat_to_aa
 
 def diff_render_test(args,frames_iter):
     
+    assert args.mesh_reg_config == "configs/sshmr/sshmr.py"
+
     model, _ = init_model(
         args.mesh_reg_config,
         args.mesh_reg_checkpoint,
@@ -45,16 +48,65 @@ def diff_render_test(args,frames_iter):
         # batch_data['sample_idx'].append(i)
         batch_data.append(data)
 
-    batch_data = collate(batch_data, samples_per_gpu=len(batch_data))
+    batch_size = len(batch_data)
+    batch_data = collate(batch_data, samples_per_gpu=batch_size)
 
     results = model(
         img=batch_data['img'],
         img_metas=batch_data['img_metas'],
         sample_idx=batch_data['sample_idx'],
     )
+
     for k,v in results.items():
         if isinstance(v,torch.Tensor):
             print(f"{k} shape:{v.shape} requires_grad:{v.requires_grad}")
+
+    dtype = results['vertices'].dtype
+
+    focal_length = 5000
+    img_res = 244
+    camera_center = torch.zeros([batch_size, 2])
+
+    R = torch.eye(3).unsqueeze(0).expand(batch_size, -1, -1)
+    
+    T = torch.stack([
+        results['camera'][:, 1], results['camera'][:, 2], 2 * focal_length /
+        (img_res * results['camera'][:, 0] + 1e-9)
+    ],dim=-1)
+
+    K = torch.zeros([batch_size, 3, 3], device=device)
+    K[:, 0, 0] = focal_length
+    K[:, 1, 1] = focal_length
+    K[:, 2, 2] = 1.
+    K[:, :-1, -1] = camera_center
+
+    K = K.to(device)
+    R = R.to(device)
+    T = T.to(device)
+
+    body_model_config = dict(
+        type='SMPL',
+        keypoint_src='h36m',
+        keypoint_dst='h36m',
+        model_path='data/body_models/smpl',
+        joints_regressor='data/body_models/J_regressor_h36m.npy')
+
+    body_model = build_body_model(body_model_config).to(device)
+
+    render_tensor = render_smpl(
+        verts = results['vertices'],
+        body_model=body_model,
+        K = K,
+        R = R,
+        T = T,
+        render_choice = 'hq',
+        palette = 'segmentation',
+        resolution = img_res,
+        return_tensor = True,
+        image_array = batch_data['img']
+    )
+
+    print(f"{render_tensor} shape:{render_tensor.shape} requires_grad:{render_tensor.requires_grad}")
 
 def main(args):
 
@@ -161,7 +213,7 @@ if __name__ == '__main__':
 
 """
 python demo/estimate_smpl_copy.py \
-    configs/hmr/resnet50_hmr_pw3d.py \
+    configs/sshmr/sshmr.py \
     data/checkpoints/resnet50_hmr_pw3d.pth \
     --single_person_demo \
     --det_config demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py \
