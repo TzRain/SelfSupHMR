@@ -3,16 +3,20 @@ use_adversarial_train = True
 
 # evaluate
 evaluation = dict(metric=['pa-mpjpe', 'mpjpe'])
+
 # optimizer
 optimizer = dict(
     backbone=dict(type='Adam', lr=2.5e-4),
     head=dict(type='Adam', lr=2.5e-4),
-    disc=dict(type='Adam', lr=1e-4))
+    disc=dict(type='Adam', lr=1e-4)
+)
 optimizer_config = dict(grad_clip=None)
+
 # learning policy
 lr_config = dict(policy='Fixed', by_epoch=False)
 runner = dict(type='EpochBasedRunner', max_epochs=100)
 
+# log confi
 log_config = dict(
     interval=50,
     hooks=[
@@ -21,7 +25,6 @@ log_config = dict(
     ])
 
 img_res = 224
-
 # model settings
 model = dict(
     type='CustomImageBodyModelEstimator',
@@ -33,10 +36,10 @@ model = dict(
         norm_cfg=dict(type='SyncBN', requires_grad=True),
         init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
     head=dict(
-        type='CUTHMRHead',
-        # type='HMRHead',
+        type='HMRHead',
         feat_dim=2048,
         smpl_mean_params='data/body_models/smpl_mean_params.npz'),
+    disc=dict(type='SMPLDiscriminator'),
     body_model_train=dict(
         type='SMPL',
         keypoint_src='smpl_54',
@@ -62,7 +65,8 @@ model = dict(
         real_label_val=1.0,
         fake_label_val=0.0,
         loss_weight=1),
-    disc=dict(type='SMPLDiscriminator'))
+)
+
 # dataset settings
 dataset_type = 'HumanImageDataset'
 img_norm_cfg = dict(
@@ -76,7 +80,7 @@ train_pipeline = [
     dict(type='RandomChannelNoise', noise_factor=0.4),
     dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='smpl_54'),
     dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0.25),
-    dict(type='MeshAffine', img_res=224),
+    dict(type='MeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='ToTensor', keys=data_keys),
@@ -92,7 +96,7 @@ train_adv_pipeline = [dict(type='Collect', keys=adv_data_keys, meta_keys=[])]
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='GetRandomScaleRotation', rot_factor=0, scale_factor=0),
-    dict(type='MeshAffine', img_res=224),
+    dict(type='MeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='ToTensor', keys=data_keys),
@@ -103,7 +107,7 @@ test_pipeline = [
 ]
 
 inference_pipeline = [
-    dict(type='MeshAffine', img_res=224),
+    dict(type='MeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(
@@ -113,7 +117,7 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=8,
+    samples_per_gpu=128,
     workers_per_gpu=1,
     train=dict(
         type='AdversarialDataset',

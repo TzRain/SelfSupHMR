@@ -118,5 +118,22 @@
         "--draw_bbox"
       ]
     },
+    // python tools/train.py configs/custom/resnet50_hmr_con.py --work-dir work_dirs/custom_con --gpus 1 --no-validate
+    {
+      "name": "Train resnet50_hmr_con",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/train.py",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "args": [
+        "configs/custom/resnet50_hmr_con.py",
+        "--work-dir",
+        "work_dirs/custom_con",
+        "--gpus",
+        "1",
+        "--no-validate"
+      ]
+    },
   ]
 }

@@ -7,6 +7,7 @@ from .expressive_mesh_estimator import SMPLXImageBodyModelEstimator
 from .hybrik import HybrIK_trainer
 from .custom_mesh_estimator import CustomImageBodyModelEstimator
 from .mesh_estimator import ImageBodyModelEstimator, VideoBodyModelEstimator
+from .self_sup_mesh_estimator import SelfSupImageBodyModelEstimator
 
 
 def build_from_cfg(cfg, registry, default_args=None):
@@ -25,9 +26,10 @@ ARCHITECTURES.register_module(
     name='VideoBodyModelEstimator', module=VideoBodyModelEstimator)
 ARCHITECTURES.register_module(
     name='SMPLXImageBodyModelEstimator', module=SMPLXImageBodyModelEstimator)
-
 ARCHITECTURES.register_module(
     name='CustomImageBodyModelEstimator', module=CustomImageBodyModelEstimator)
+ARCHITECTURES.register_module(
+    name='SelfSupImageBodyModelEstimator', module=SelfSupImageBodyModelEstimator)
 
 
 def build_architecture(cfg):

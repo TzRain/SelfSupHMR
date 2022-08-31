@@ -19,12 +19,11 @@ log_config = dict(
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
     ])
-
 img_res = 224
 
 # model settings
 model = dict(
-    type='CustomImageBodyModelEstimator',
+    type='SelfSupImageBodyModelEstimator',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -33,10 +32,11 @@ model = dict(
         norm_cfg=dict(type='SyncBN', requires_grad=True),
         init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
     head=dict(
-        type='CUTHMRHead',
-        # type='HMRHead',
+        type='HMRHead',
         feat_dim=2048,
         smpl_mean_params='data/body_models/smpl_mean_params.npz'),
+    encoder=dict(
+        type='Encoder'),
     body_model_train=dict(
         type='SMPL',
         keypoint_src='smpl_54',
@@ -164,7 +164,7 @@ data = dict(
                     convention='smpl_54',
                     ann_file='coco_2014_train.npz'),
             ],
-            partition=[0.35, 0.15, 0.10, 0.10, 0.10, 0.20],
+            # partition=[0.35, 0.15, 0.10, 0.10, 0.10, 0.20],
         ),
         adv_dataset=dict(
             type='MeshDataset',

@@ -4,6 +4,7 @@ from mmcv.utils import Registry
 
 from .hrnet import PoseHighResolutionNet, PoseHighResolutionNetExpose
 from .resnet import ResNet, ResNetV1d
+from .CUTEncoder import Encoder
 
 BACKBONES = Registry('backbones')
 
@@ -13,6 +14,8 @@ BACKBONES.register_module(
     name='PoseHighResolutionNet', module=PoseHighResolutionNet)
 BACKBONES.register_module(
     name='PoseHighResolutionNetExpose', module=PoseHighResolutionNetExpose)
+BACKBONES.register_module(
+    name='Encoder', module=Encoder)
 
 
 def build_backbone(cfg):

@@ -39,7 +39,7 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 
-class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
+class SelfSupBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
     """BodyModelEstimator Architecture.
 
     Args:
@@ -79,6 +79,7 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  backbone: Optional[Union[dict, None]] = None,
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
+                 encoder: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
                  registration: Optional[Union[dict, None]] = None,
                  body_model_train: Optional[Union[dict, None]] = None,
@@ -93,10 +94,11 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  loss_adv: Optional[Union[dict, None]] = None,
                  loss_segm_mask: Optional[Union[dict, None]] = None,
                  init_cfg: Optional[Union[list, dict, None]] = None):
-        super(CustomBodyModelEstimator, self).__init__(init_cfg)
+        super(SelfSupBodyModelEstimator, self).__init__(init_cfg)
         self.backbone = build_backbone(backbone)
         self.neck = build_neck(neck)
         self.head = build_head(head)
+        self.encoder = build_backbone(encoder)
         self.disc = build_discriminator(disc)
 
         self.body_model_train = build_body_model(body_model_train)
@@ -157,11 +159,8 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         # predictions = self.head(features)
         img_metas = data_batch['img_metas']
-        predictions,NCE_loss = self.head(features,img_metas = img_metas,is_training = True)
-        losses={}
-        losses['NCE_loss'] = NCE_loss
+        predictions = self.head(features)
         targets = self.prepare_targets(data_batch)
-
         # optimize discriminator (if have)
         if self.disc is not None:
             self.optimize_discrinimator(predictions, data_batch, optimizer)
@@ -731,7 +730,7 @@ class CustomBodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         pass
 
 
-class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
+class SelfSupImageBodyModelEstimator(SelfSupBodyModelEstimator):
 
     def make_fake_data(self, predictions: dict, requires_grad: bool):
         pred_cam = predictions['pred_cam']
@@ -796,7 +795,7 @@ class CustomImageBodyModelEstimator(CustomBodyModelEstimator):
         return all_preds
 
 
-class CustomVideoBodyModelEstimator(CustomBodyModelEstimator):
+class SelfSupVideoBodyModelEstimator(SelfSupBodyModelEstimator):
 
     def make_fake_data(self, predictions: dict, requires_grad: bool):
         B, T = predictions['pred_cam'].shape[:2]
