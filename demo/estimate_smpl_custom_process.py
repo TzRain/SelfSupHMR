@@ -106,19 +106,39 @@ def diff_render_test(args,frames_iter):
     #     no_grad=False,
     #     image_array = batch_data['img'].permute(0,2,3,1)
     # )
-    visualize_smpl_hmr(
-            poses=smpl_poses.reshape(-1, 24 * 3),
-            betas=smpl_betas,
-            cam_transl=pred_cams,
-            bbox=bboxes_xyxy,
-            output_path=args.show_path,
-            render_choice=args.render_choice,
-            resolution=frames_iter[0].shape[:2],
-            origin_frames=frames_folder,
-            body_model_config=body_model_config,
-            overwrite=True,
-            palette=args.palette,
-            read_frames_batch=True)
+
+    # new render wolk through
+
+    smpl_poses = results['smpl_pose']
+    smpl_betas = results['smpl_beta']
+    pred_cams = results['smpl_beta']
+
+    if smpl_poses.shape[1:] == (24, 3, 3):
+        smpl_poses = rotmat_to_aa(smpl_poses)
+    
+    bboxes_xyxy = []
+    for i in range(batch_size):
+        bboxes_xyxy.append([0,0,img_res,img_res])
+    
+    bboxes_xyxy = np.array(bboxes_xyxy)
+
+    render_tensor = visualize_smpl_hmr(
+        poses=smpl_poses.reshape(-1, 24 * 3),
+        betas=smpl_betas,
+        cam_transl=pred_cams,
+        bbox=bboxes_xyxy,
+        render_choice='hq',
+        resolution=img_res,
+        image_array = batch_data['img'].permute(0,2,3,1),
+        body_model=body_model,
+        overwrite=True,
+        no_grad = False,
+        return_tensor = True,
+        batch_size = batch_size,
+        palette='segmentation',
+        read_frames_batch=True)
+    
+    # new render wolk through
 
     render_tensor_de = render_tensor.detach().cpu().numpy() * 256
 

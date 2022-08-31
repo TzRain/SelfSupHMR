@@ -1118,6 +1118,13 @@ def visualize_smpl_hmr(cam_transl,
     for k in func.keywords.keys():
         if k in kwargs:
             kwargs.pop(k)
+
+    if not isinstance(Ks,torch.Tensor):
+        Ks = torch.Tensor(Ks)
+    if not isinstance(K,torch.Tensor):
+        K = torch.Tensor(K)
+    Ks = Ks.to(T.device)
+    K = K.to(T.device)
     return func(Ks=Ks, K=K, T=T, **kwargs)
 
 
