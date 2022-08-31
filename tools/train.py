@@ -3,6 +3,7 @@ import copy
 import os
 import os.path as osp
 import time
+import wandb
 
 import mmcv
 import torch
@@ -69,6 +70,8 @@ def main():
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True
+    # set wandb key
+    wandb.login(key=cfg.get('wandb_key', '1d29134e725be022d6fec2523becb39d013f399b'))
 
     # work_dir is determined in this priority: CLI > segment in file > filename
     if args.work_dir is not None:
@@ -152,4 +155,5 @@ def main():
 
 
 if __name__ == '__main__':
+    
     main()

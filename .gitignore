@@ -109,7 +109,7 @@ data
 !mmhuman3d/data
 # data for pytest moved to http server
 # !tests/data
-.vscode
+# .vscode
 .idea
 *.pkl
 *.pkl.json
@@ -143,3 +143,9 @@ logs/
 *DS_Store*
 # git
 *.orig
+
+# amlt
+.amltconfig
+
+#
+wandb/
