@@ -109,16 +109,9 @@ def diff_render_test(args,frames_iter):
     print(f"{render_tensor} shape:{render_tensor.shape} requires_grad:{render_tensor.requires_grad}")
 
 def main(args):
-
     # prepare input
     frames_iter = prepare_frames(args.input_path)
-
-    if args.custom_process:
-        diff_render_test(args,frames_iter)
-    else:
-        raise ValueError(
-            'Only supports single_person_demo or multi_person_demo')
-
+    diff_render_test(args,frames_iter)
 
 if __name__ == '__main__':
 
@@ -133,10 +126,6 @@ if __name__ == '__main__':
         type=str,
         default=None,
         help='Checkpoint file for mesh regression')
-    parser.add_argument(
-        '--single_person_demo',
-        action='store_true',
-        help='Single person demo with MMDetection')
     parser.add_argument('--det_config', help='Config file for detection')
     parser.add_argument(
         '--det_checkpoint', help='Checkpoint file for detection')
@@ -150,7 +139,6 @@ if __name__ == '__main__':
         action='store_true',
         help='Multi person demo with MMTracking')
     parser.add_argument('--tracking_config', help='Config file for tracking')
-
     parser.add_argument(
         '--body_model_dir',
         type=str,
@@ -169,45 +157,12 @@ if __name__ == '__main__':
         default=None,
         help='directory to save rendered images or video')
     parser.add_argument(
-        '--render_choice',
-        type=str,
-        default='hq',
-        help='Render choice parameters')
-    parser.add_argument(
-        '--palette', type=str, default='segmentation', help='Color theme')
-    parser.add_argument(
-        '--bbox_thr',
-        type=float,
-        default=0.99,
-        help='Bounding box score threshold')
-    parser.add_argument(
-        '--draw_bbox',
-        action='store_true',
-        help='Draw a bbox for each detected instance')
-    parser.add_argument(
-        '--smooth_type',
-        type=str,
-        default=None,
-        help='Smooth the data through the specified type.'
-        'Select in [oneeuro,gaus1d,savgol].')
-    parser.add_argument(
-        '--speed_up_type',
-        type=str,
-        default=None,
-        help='Speed up data processing through the specified type.'
-        'Select in [deciwatch].')
-    parser.add_argument(
         '--focal_length', type=float, default=5000., help='Focal lenght')
     parser.add_argument(
         '--device',
         choices=['cpu', 'cuda'],
         default='cuda',
         help='device used for testing')
-    parser.add_argument(
-        '--custom_process',
-        type=bool,
-        default=True,
-        help='run custom process')
     args = parser.parse_args()
     main(args)
 
@@ -215,13 +170,7 @@ if __name__ == '__main__':
 python demo/estimate_smpl_copy.py \
     configs/sshmr/sshmr.py \
     data/checkpoints/resnet50_hmr_pw3d.pth \
-    --single_person_demo \
-    --det_config demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py \
-    --det_checkpoint https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
     --input_path  demo/resources/image \
     --show_path vis_results/demo_image/ \
-    --output demo_result \
-    --smooth_type savgol \
-    --speed_up_type deciwatch \
-    --draw_bbox
+    --output demo_result
 """
