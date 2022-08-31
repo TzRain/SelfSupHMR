@@ -123,6 +123,7 @@ logs/
 
 
 # Visualization
+vis_results/
 *.mp4
 *.png
 *.gif
@@ -145,7 +146,8 @@ logs/
 *.orig
 
 # amlt
+amlt/
 .amltconfig
 
-#
+#wandb
 wandb/
