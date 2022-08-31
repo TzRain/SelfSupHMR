@@ -25,7 +25,7 @@ img_res = 224
 
 # model settings
 model = dict(
-    type='ImageBodyModelEstimator',
+    type='ImageSelfSupEstimator',
     backbone=dict(
         type='ResNet',
         depth=50,

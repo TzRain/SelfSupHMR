@@ -774,11 +774,16 @@ class ImageSelfSupEstimator(SelfSupEstimator):
         pred_vertices = pred_output['vertices']
         pred_keypoints_3d = pred_output['joints']
         all_preds = {}
-        all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
-        all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
-        all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
-        all_preds['camera'] = pred_cam.detach().cpu().numpy()
-        all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
+        # all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
+        # all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
+        # all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
+        # all_preds['camera'] = pred_cam.detach().cpu().numpy()
+        # all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
+        all_preds['keypoints_3d'] = pred_keypoints_3d
+        all_preds['smpl_pose'] = pred_pose
+        all_preds['smpl_beta'] = pred_betas
+        all_preds['camera'] = pred_cam
+        all_preds['vertices'] = pred_vertices
         image_path = []
         for img_meta in img_metas:
             image_path.append(img_meta['image_path'])

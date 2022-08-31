@@ -19,13 +19,13 @@
             "program": "demo/estimate_smpl_copy.py",
             "console": "integratedTerminal",
             "args": [
-                "configs/hmr/resnet50_hmr_pw3d.py",     
-                "data/checkpoints/resnet50_hmr_pw3d.pth",     
+                "configs/sshmr/sshmr.py",
+                "data/checkpoints/resnet50_hmr_pw3d.pth",   
                 "--single_person_demo",     
                 "--det_config", "demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py",
                 "--det_checkpoint", "https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth",
                 "--input_path",  
-                "demo/resources/image/1.jpg",
+                "demo/resources/image/",
                 "--show_path", "vis_results/demo_image/",
                 "--output", "demo_result",
                 "--smooth_type", "savgol",
@@ -34,6 +34,6 @@
             ],
             "justMyCode": true
         }
-        // python demo/estimate_smpl_copy.py     configs/hmr/resnet50_hmr_pw3d.py     data/checkpoints/resnet50_hmr_pw3d.pth     --single_person_demo     --det_config demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py     --det_checkpoint https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth     --input_path  demo/resources/image/1.jpg     --show_path vis_results/demo_image/     --output demo_result     --smooth_type savgol     --speed_up_type deciwatch     --draw_bbox
+        // python demo/estimate_smpl_copy.py configs/sshmr/sshmr.py data/checkpoints/resnet50_hmr_pw3d.pth --single_person_demo --det_config demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py --det_checkpoint https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth --input_path demo/resources/image/1.jpg --show_path vis_results/demo_image/ --output demo_result --smooth_type savgol --speed_up_type deciwatch --draw_bbox
     ]
 }
