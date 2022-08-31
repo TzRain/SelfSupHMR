@@ -18,6 +18,8 @@ from mmhuman3d.utils.logger import get_root_logger
 
 import torch.distributed as dist
 
+from mmtests.test_models.test_architectures.test_custom_mesh_estimator import test_custom_mesh_estimator
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')
     parser.add_argument('config', help='train config file path')
@@ -127,8 +129,12 @@ def main():
     cfg.seed = args.seed
     meta['seed'] = args.seed
 
-    model = build_architecture(cfg.model)
-    model.init_weights()
+    
+    if cfg.model.type == 'CustomImageBodyModelEstimator':
+        model = test_custom_mesh_estimator(load_pretrain=False)
+    else:
+        model = build_architecture(cfg.model)
+        model.init_weights()   
 
     datasets = [build_dataset(cfg.data.train)]
     if len(cfg.workflow) == 2:

@@ -90,29 +90,38 @@ def parse_requirements(fname='requirements.txt', with_version=True):
     return packages
 
 
-setup(
-    name='mmhuman3d',
-    version=get_version(),
-    description='OpenMMLab 3D Human Toolbox and Benchmark',
-    long_description=readme(),
-    long_description_content_type='text/markdown',
-    author='OpenMMLab',
-    author_email='openmmlab@gmail.com',
-    keywords='3D Human',
-    url='https://github.com/open-mmlab/mmhuman3d',
-    packages=find_packages(exclude=('configs', 'tools', 'demo')),
-    include_package_data=True,
-    classifiers=[
-        'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: Apache Software License',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-    ],
-    license='Apache License 2.0',
-    tests_require=parse_requirements('requirements/tests.txt'),
-    install_requires=parse_requirements('requirements/runtime.txt'),
-    zip_safe=False)
+# setup(
+#     name='mmhuman3d',
+#     version=get_version(),
+#     description='OpenMMLab 3D Human Toolbox and Benchmark',
+#     long_description=readme(),
+#     long_description_content_type='text/markdown',
+#     author='OpenMMLab',
+#     author_email='openmmlab@gmail.com',
+#     keywords='3D Human',
+#     url='https://github.com/open-mmlab/mmhuman3d',
+#     packages=find_packages(exclude=('configs', 'tools', 'demo')),
+#     include_package_data=True,
+#     classifiers=[
+#         'Development Status :: 4 - Beta',
+#         'License :: OSI Approved :: Apache Software License',
+#         'Operating System :: OS Independent',
+#         'Programming Language :: Python :: 3',
+#         'Programming Language :: Python :: 3.6',
+#         'Programming Language :: Python :: 3.7',
+#         'Programming Language :: Python :: 3.8',
+#         'Programming Language :: Python :: 3.9',
+#     ],
+#     license='Apache License 2.0',
+#     tests_require=parse_requirements('requirements/tests.txt'),
+#     install_requires=parse_requirements('requirements/runtime.txt'),
+#     zip_safe=False)
+
+
+# setup(
+#     name='CUT',
+#     description='CUT',
+#     packages=['CUT'],
+#     include_package_data=True,
+#     install_requires=parse_requirements('requirements/requirements.txt'),
+#     zip_safe=False)
