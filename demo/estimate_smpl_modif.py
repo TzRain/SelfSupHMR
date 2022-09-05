@@ -1,4 +1,5 @@
 import os
+import cv2
 import os.path as osp
 import shutil
 import warnings
@@ -8,7 +9,7 @@ from pathlib import Path
 import mmcv
 import numpy as np
 import torch
-
+from demo.estimate_smpl_custom_process import diff_render_test
 from mmhuman3d.apis import (
     feature_extract,
     inference_image_based_model,
@@ -16,6 +17,7 @@ from mmhuman3d.apis import (
     init_model,
 )
 from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_hmr
+from mmhuman3d.models.body_models.builder import build_body_model
 from mmhuman3d.data.data_structures.human_data import HumanData
 from mmhuman3d.utils.demo_utils import (
     extract_feature_sequence,
@@ -175,12 +177,14 @@ def single_person_with_mmdet(args, frames_iter):
                     'keypoints_3d': np.zeros((17, 3)),
                 }]
             else:
-                mesh_results = inference_image_based_model(
+                mesh_results,org_result = inference_image_based_model(
                     mesh_model,
                     frames_iter[frame_id],
                     result,
                     bbox_thr=args.bbox_thr,
                     format='xyxy')
+
+                diff_render_test(args,frames_iter,org_result)
         else:
             raise (f'{mesh_model.cfg.model.type} is not supported yet')
 
@@ -191,10 +195,10 @@ def single_person_with_mmdet(args, frames_iter):
         verts.append(mesh_results[0]['vertices'])
         bboxes_xyxy.append(mesh_results[0]['bbox'])
 
-    # smpl_poses = np.array(smpl_poses)
-    # smpl_betas = np.array(smpl_betas)
-    # pred_cams = np.array(pred_cams)
-    # verts = np.array(verts)
+    smpl_poses = np.array(smpl_poses)
+    smpl_betas = np.array(smpl_betas)
+    pred_cams = np.array(pred_cams)
+    verts = np.array(verts)
     bboxes_xyxy = np.array(bboxes_xyxy)
 
     # release GPU memory
@@ -213,15 +217,6 @@ def single_person_with_mmdet(args, frames_iter):
             selected_frames, speed_up_frames, smpl_poses, smpl_betas,
             pred_cams, bboxes_xyxy)
 
-    # smooth
-    if args.smooth_type is not None:
-        smpl_poses = smooth_process(
-            smpl_poses.reshape(frame_num, 24, 9),
-            smooth_type=args.smooth_type).reshape(frame_num, 24, 3, 3)
-        verts = smooth_process(verts, smooth_type=args.smooth_type)
-        pred_cams = smooth_process(
-            pred_cams[:, np.newaxis],
-            smooth_type=args.smooth_type).reshape(frame_num, 3)
 
     if smpl_poses.shape[1:] == (24, 3, 3):
         smpl_poses = rotmat_to_aa(smpl_poses)
@@ -274,22 +269,35 @@ def single_person_with_mmdet(args, frames_iter):
                 np.array(frames_iter)[frame_id_list],
                 output_folder=frames_folder)
 
-        body_model_config = dict(model_path=args.body_model_dir, type='smpl')
-        visualize_smpl_hmr(
+        # body_model_config = dict(model_path=args.body_model_dir, type='smpl')
+        body_model_config = dict(
+            type='SMPL',
+            keypoint_src='h36m',
+            keypoint_dst='h36m',
+            model_path='data/body_models/smpl',
+            joints_regressor='data/body_models/J_regressor_h36m.npy')
+        
+        body_model = build_body_model(body_model_config).to('cpu')
+
+        render_tensor = visualize_smpl_hmr(
             poses=smpl_poses.reshape(-1, 24 * 3),
             betas=smpl_betas,
             cam_transl=pred_cams,
             bbox=bboxes_xyxy,
-            output_path=args.show_path,
             render_choice=args.render_choice,
             resolution=frames_iter[0].shape[:2],
             origin_frames=frames_folder,
-            body_model_config=body_model_config,
+            body_model=body_model,
             overwrite=True,
+            return_tensor =True,
             palette=args.palette,
             read_frames_batch=True)
-        if args.output is None:
-            shutil.rmtree(frames_folder)
+
+        render_tensor_de = render_tensor.detach().cpu().numpy() * 256
+
+        for i,img in enumerate(render_tensor_de):
+            print(f"{args.show_path}{i}.jpg")
+            cv2.imwrite(f"{args.show_path}{i}.jpg",img)
 
 
 def multi_person_with_mmtracking(args, frames_iter):
@@ -356,6 +364,7 @@ def multi_person_with_mmtracking(args, frames_iter):
                     result,
                     bbox_thr=args.bbox_thr,
                     format='xyxy')
+                return
         else:
             raise (f'{mesh_model.cfg.model.type} is not supported yet')
 
@@ -591,5 +600,5 @@ if __name__ == '__main__':
     main(args)
 
 """
-python demo/estimate_smpl_modif.py     configs/sshmr/sshmr.py     data/checkpoints/resnet50_hmr_pw3d.pth     --single_person_demo     --det_config demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py     --det_checkpoint https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth     --input_path  demo/resources/single_person_demo.mp4     --show_path vis_results/single_person_demo.mp4     --output demo_result
+python demo/estimate_smpl_modif.py     configs/sshmr/sshmr.py     data/checkpoints/resnet50_hmr_pw3d.pth     --single_person_demo     --det_config demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py     --det_checkpoint https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth     --input_path  demo/resources/image    --show_path vis_results/demo_modif/
 """

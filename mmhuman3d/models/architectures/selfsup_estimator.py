@@ -3,6 +3,7 @@ from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+from demo.demo_render import demo_render
 
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
 from mmhuman3d.core.conventions.keypoints_mapping import get_keypoint_idx
@@ -774,16 +775,19 @@ class ImageSelfSupEstimator(SelfSupEstimator):
         pred_vertices = pred_output['vertices']
         pred_keypoints_3d = pred_output['joints']
         all_preds = {}
-        # all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
-        # all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
-        # all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
-        # all_preds['camera'] = pred_cam.detach().cpu().numpy()
-        # all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
-        all_preds['keypoints_3d'] = pred_keypoints_3d
-        all_preds['smpl_pose'] = pred_pose
-        all_preds['smpl_beta'] = pred_betas
-        all_preds['camera'] = pred_cam
-        all_preds['vertices'] = pred_vertices
+        all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
+        all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
+        all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
+        all_preds['camera'] = pred_cam.detach().cpu().numpy()
+        all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
+        gd_preds={}
+        gd_preds['keypoints_3d'] = pred_keypoints_3d
+        gd_preds['smpl_pose'] = pred_pose
+        gd_preds['smpl_beta'] = pred_betas
+        gd_preds['camera'] = pred_cam
+        gd_preds['vertices'] = pred_vertices
+        all_preds['gd_preds'] = gd_preds
+        # demo_render(pred_pose,pred_betas,pred_cam)
         image_path = []
         for img_meta in img_metas:
             image_path.append(img_meta['image_path'])

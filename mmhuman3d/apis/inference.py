@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from mmcv.parallel import collate
 from mmcv.runner import load_checkpoint
-
 from mmhuman3d.data.datasets.pipelines import Compose
 from mmhuman3d.models.architectures.builder import build_architecture
 from mmhuman3d.models.backbones.builder import build_backbone
@@ -183,12 +182,13 @@ def inference_image_based_model(
     ]
 
     # forward the model
-    with torch.no_grad():
-        results = model(
-            img=batch_data['img'],
-            img_metas=batch_data['img_metas'],
-            sample_idx=batch_data['sample_idx'],
-        )
+    # with torch.no_grad():
+    results = model(
+        img=batch_data['img'],
+        img_metas=batch_data['img_metas'],
+        sample_idx=batch_data['sample_idx'],
+    )
+    
 
     for idx in range(len(det_results)):
         mesh_result = det_results[idx].copy()
@@ -199,7 +199,7 @@ def inference_image_based_model(
         mesh_result['vertices'] = results['vertices'][idx]
         mesh_result['keypoints_3d'] = results['keypoints_3d'][idx]
         mesh_results.append(mesh_result)
-    return mesh_results
+    return mesh_results,results
 
 
 def inference_video_based_model(model,
