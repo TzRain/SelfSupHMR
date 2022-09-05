@@ -4,6 +4,23 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // python tools/train.py configs/sshmr/sshmr.py --work-dir work_dirs/sshmr --gpus 1 --no-validate
+        {
+            "name": "Train SSHMR",
+            "type": "python",
+            "request": "launch",
+            "program": "/anaconda/envs/SSHMR/lib/python3.8/site-packages/torch/distributed/launch.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--nproc_per_node=1",
+                "--master_port=-29500",
+                "tools/train.py",
+                "configs/sshmr/sshmr.py", 
+                "--launcher","pytorch",
+                "--work-dir", "work_dirs/sshmr", 
+                "--no-validate"],
+            "justMyCode": true
+        },
         // python                          
         {
             "name": "Mode demo",
@@ -15,10 +32,14 @@
                 "configs/sshmr/sshmr.py",
                 "data/checkpoints/resnet50_hmr_pw3d.pth",
                 "--single_person_demo",
-                "--det_config", "demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py",
-                "--det_checkpoint", "https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth",
-                "--input_path",  "demo/resources/image",
-                "--show_path", "vis_results/demo_modif/",
+                "--det_config",
+                "demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py",
+                "--det_checkpoint",
+                "https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth",
+                "--input_path",
+                "demo/resources/image",
+                "--show_path",
+                "vis_results/demo_modif/",
             ],
             "justMyCode": false
         },
@@ -47,6 +68,6 @@
                 "demo_result"
             ],
             "justMyCode": true
-        }
+        },
     ]
 }

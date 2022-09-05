@@ -37,6 +37,16 @@ model = dict(
         type='HMRHead',
         feat_dim=2048,
         smpl_mean_params='data/body_models/smpl_mean_params.npz'),
+    renderer = dict(
+        body_model_config= dict(
+            type='SMPL',
+            keypoint_src='h36m',
+            keypoint_dst='h36m',
+            model_path='data/body_models/smpl',
+            joints_regressor='data/body_models/J_regressor_h36m.npy'),
+        render_choice = 'hq',
+        palette = 'segmentation',
+    ),
     body_model_train=dict(
         type='SMPL',
         keypoint_src='smpl_54',
@@ -185,3 +195,6 @@ data = dict(
         pipeline=test_pipeline,
         ann_file='pw3d_test.npz'),
 )
+"""
+python tools/train.py configs/sshmr/sshmr.py --work-dir work_dirs/sshmr --gpus 1 --no-validate
+"""

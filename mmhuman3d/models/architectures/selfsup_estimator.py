@@ -1,11 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Tuple, Union
-
+import cv2
 import torch
 import torch.nn.functional as F
-from demo.demo_render import demo_render
-
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
+from mmhuman3d.core.visualization.visualize_smpl import render_smpl
 from mmhuman3d.core.conventions.keypoints_mapping import get_keypoint_idx
 from mmhuman3d.models.utils import FitsDict
 from mmhuman3d.utils.geometry import (
@@ -23,6 +22,77 @@ from ..necks.builder import build_neck
 from ..registrants.builder import build_registrant
 from .base_architecture import BaseArchitecture
 
+class CustomRenderer():
+    
+    def __init__(self,
+                 body_model_config= dict(
+                                         type='SMPL',
+                                         keypoint_src='h36m',
+                                         keypoint_dst='h36m',
+                                         model_path='data/body_models/smpl',
+                                         joints_regressor='data/body_models/J_regressor_h36m.npy'),
+                 render_choice='hq',
+                 palette='segmentation',
+                 device='cuda',
+                 focal_length = 5000,
+                 img_res = 224,
+                 show_path='vis_results/train_renderer/'
+                 ):
+        self.img_res = img_res
+        self.focal_length = focal_length
+        self.device = device         
+        self.palette = palette
+        self.render_choice = render_choice
+        self.body_model= build_body_model(body_model_config).to(device)
+        self.render_tensor = None
+        self.show_path = show_path
+    
+    def save_img(self):
+        render_tensor_de = self.render_tensor.detach().cpu().numpy() * 256
+        for i,img in enumerate(render_tensor_de):
+            print(f"{self.show_path}{i}.jpg")
+            cv2.imwrite(f"{self.show_path}{i}.jpg",img)
+    
+    def render(self,verts,camera,image_array = None):
+        
+        batch_size = verts.shape[0]
+        camera_center = torch.zeros([batch_size, 2])
+
+        R = torch.eye(3).unsqueeze(0).expand(batch_size, -1, -1)
+        
+        T = torch.stack([
+            camera[:, 1], camera[:, 2], 2 * self.focal_length /
+            (self.img_res * camera[:, 0] + 1e-9)
+        ],dim=-1)
+
+        K = torch.zeros([batch_size, 3, 3], device=self.device)
+        K[:, 0, 0] = self.focal_length
+        K[:, 1, 1] = self.focal_length
+        K[:, 2, 2] = 1.
+        K[:, :-1, -1] = camera_center
+
+        K = K.to(self.device)
+        R = R.to(self.device)
+        T = T.to(self.device)
+
+        render_tensor = render_smpl(
+            verts = verts,
+            body_model=self.body_model,
+            K = K,
+            R = R,
+            T = T,
+            render_choice = self.render_choice,
+            palette = self.palette,
+            resolution = self.img_res,
+            return_tensor = True,
+            batch_size = batch_size,
+            no_grad=False,
+            image_array = image_array
+        )
+        assert render_tensor.requires_grad == True
+        self.render_tensor = render_tensor
+        return render_tensor
+    
 
 def set_requires_grad(nets, requires_grad=False):
     """Set requies_grad for all the networks.
@@ -80,6 +150,7 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
                  backbone: Optional[Union[dict, None]] = None,
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
+                 renderer :Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
                  registration: Optional[Union[dict, None]] = None,
                  body_model_train: Optional[Union[dict, None]] = None,
@@ -99,6 +170,7 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.neck = build_neck(neck)
         self.head = build_head(head)
         self.disc = build_discriminator(disc)
+        self.renderer = CustomRenderer(**renderer)
 
         self.body_model_train = build_body_model(body_model_train)
         self.body_model_test = build_body_model(body_model_test)
@@ -156,6 +228,22 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
             features = self.neck(features)
 
         predictions = self.head(features)
+
+        # render process
+        pred_pose = predictions['pred_pose']
+        pred_betas = predictions['pred_shape']
+        pred_cam = predictions['pred_cam']
+        pred_output = self.body_model_test(
+            betas=pred_betas,
+            body_pose=pred_pose[:, 1:],
+            global_orient=pred_pose[:, 0].unsqueeze(1),
+            pose2rot=False)
+
+        pred_vertices = pred_output['vertices']
+
+        self.renderer.render(pred_vertices,pred_cam)
+        self.renderer.save_img()
+
         targets = self.prepare_targets(data_batch)
 
         # optimize discriminator (if have)

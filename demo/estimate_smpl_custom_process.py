@@ -158,6 +158,7 @@ def diff_render_test(args,frames_iter,results=None):
     render_tensor_de = render_tensor.detach().cpu().numpy() * 256
 
     for i,img in enumerate(render_tensor_de):
+        print(f"{args.show_path}{i}.jpg")
         cv2.imwrite(f"{args.show_path}{i}.jpg",img)
 
     print(f"render_tensor shape:{render_tensor.shape} requires_grad:{render_tensor.requires_grad}")

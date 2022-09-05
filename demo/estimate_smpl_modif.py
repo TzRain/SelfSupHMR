@@ -195,6 +195,7 @@ def single_person_with_mmdet(args, frames_iter):
         verts.append(mesh_results[0]['vertices'])
         bboxes_xyxy.append(mesh_results[0]['bbox'])
 
+    return 
     smpl_poses = np.array(smpl_poses)
     smpl_betas = np.array(smpl_betas)
     pred_cams = np.array(pred_cams)
