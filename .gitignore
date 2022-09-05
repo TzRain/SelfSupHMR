@@ -143,3 +143,10 @@ logs/
 *DS_Store*
 # git
 *.orig
+
+
+#wandb
+wandb/
+
+#amlt
+.amltconfig
