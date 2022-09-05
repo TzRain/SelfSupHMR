@@ -28,8 +28,6 @@ from mmhuman3d.utils.transforms import Compose, rotmat_to_aa
 
 def custom_render(verts,camera,batch_size,device,image_array=None):
     # checkout gd
-    
-
     focal_length = 5000
     img_res = 224
     camera_center = torch.zeros([batch_size, 2])
@@ -72,7 +70,7 @@ def custom_render(verts,camera,batch_size,device,image_array=None):
         return_tensor = True,
         batch_size = batch_size,
         no_grad=False,
-        # image_array = image_array
+        image_array = image_array
     )
 
     # new render wolk through
