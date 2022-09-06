@@ -52,8 +52,10 @@ model = dict(
             model_path='data/body_models/smpl',
             joints_regressor='data/body_models/J_regressor_h36m.npy'),
         render_choice = 'hq',
-        palette = 'segmentation',),
-    encoder = dict(),
+        palette = 'segmentation'),
+    encoder = dict(
+        type='Encoder',
+    ),
     body_model_train=dict(
         type='SMPL',
         keypoint_src='smpl_54',
@@ -204,4 +206,5 @@ data = dict(
 )
 """
 python tools/train.py configs/sshmr/sshmr.py --work-dir work_dirs/sshmr --gpus 1 --no-validate
+./tools/dist_train.sh configs/sshmr/sshmr.py  work_dirs/sshmr/ 1 --no-validate
 """
