@@ -205,8 +205,8 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.loss_adv = build_loss(loss_adv)
         self.loss_camera = build_loss(loss_camera)
         self.loss_segm_mask = build_loss(loss_segm_mask)
-        set_requires_grad(self.body_model_train, True) #!!!
-        set_requires_grad(self.body_model_test, True) #!!!
+        set_requires_grad(self.body_model_train, False)
+        set_requires_grad(self.body_model_test, False)
 
         if self.pre_train is not None:
             check_point_path = self.pre_train

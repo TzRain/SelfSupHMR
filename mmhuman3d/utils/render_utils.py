@@ -14,6 +14,7 @@ body_model_config = dict(model_path="data/body_models/smpl", type='smpl')
 body_model = build_body_model(body_model_config)
 
 def custom_renderer(results, save_image=False, body_model = body_model):
+    return results['pred_pose'] #
     smpl_poses = results['pred_pose']
     smpl_betas = results['pred_betas']
     pred_cams = results['pred_cam']
@@ -45,10 +46,10 @@ def custom_renderer(results, save_image=False, body_model = body_model):
         batch_size = affined_img[0].shape[0], 
     )
     
-    if save_image:
-        tensors_de = tensors.detach().cpu().numpy() * 256
-        save_img(affined_img,path_folders='affined_image')
-        save_img(tensors_de,path_folders='rendered_image')
+    # if save_image:
+    #     tensors_de = tensors.detach().cpu().numpy() * 256
+    #     save_img(affined_img,path_folders='affined_image')
+    #     save_img(tensors_de,path_folders='rendered_image')
 
     return tensors
 
