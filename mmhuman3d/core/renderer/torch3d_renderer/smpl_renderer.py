@@ -1,3 +1,4 @@
+from curses import flash
 import os.path as osp
 from pathlib import Path
 from typing import Iterable, Optional, Tuple, Union
@@ -186,62 +187,67 @@ class SMPLRenderer(BaseRenderer):
 
         rgbs = rendered_images[..., :3]
         valid_masks = rendered_images[..., 3:]
+        #? 
         images = normalize(
             images,
             origin_value_range=[0, 255],
             out_value_range=[0, 1],
             dtype=torch.float32) if images is not None else None
+        
 
         bgrs = rgb2bgr(rgbs)
 
         # write temp images for the output video
-        if self.output_path is not None:
+        
+        if images is not None:
+            output_images = bgrs * valid_masks * self.alpha + \
+                images * valid_masks * (
+                    1 - self.alpha) + (1 - valid_masks) * images
 
-            if images is not None:
-                output_images = bgrs * valid_masks * self.alpha + \
-                    images * valid_masks * (
-                        1 - self.alpha) + (1 - valid_masks) * images
+        else:
+            output_images = bgrs
 
-            else:
-                output_images = bgrs
+        if self.plot_kps:
 
-            if self.plot_kps:
-
-                joints = joints.to(self.device)
-                joints_2d = cameras.transform_points_screen(
-                    joints, image_size=self.resolution)[..., :2]
-                if joints_gt is None:
-                    joints_padded = joints
-                    num_joints = joints_padded.shape[1]
-                    joints_rgb_padded = torch.ones(
-                        num_frames, num_joints, 4) * (
-                            torch.tensor([0.0, 1.0, 0.0, 1.0]).view(1, 1, 4))
-                else:
-                    joints_gt = joints_gt.to(self.device)
-                    joints_padded = torch.cat([joints, joints_gt], dim=1)
-                    num_joints = joints.shape[1]
-                    num_joints_gt = joints_gt.shape[1]
-                    joints_rgb = torch.ones(num_frames, num_joints, 4) * (
+            joints = joints.to(self.device)
+            joints_2d = cameras.transform_points_screen(
+                joints, image_size=self.resolution)[..., :2]
+            if joints_gt is None:
+                joints_padded = joints
+                num_joints = joints_padded.shape[1]
+                joints_rgb_padded = torch.ones(
+                    num_frames, num_joints, 4) * (
                         torch.tensor([0.0, 1.0, 0.0, 1.0]).view(1, 1, 4))
-                    joints_rgb_gt = torch.ones(
-                        num_frames, num_joints_gt, 4) * (
-                            torch.tensor([1.0, 0.0, 0.0, 1.0]).view(1, 1, 4))
-                    joints_rgb_padded = torch.cat([joints_rgb, joints_rgb_gt],
-                                                  dim=1)
+            else:
+                joints_gt = joints_gt.to(self.device)
+                joints_padded = torch.cat([joints, joints_gt], dim=1)
+                num_joints = joints.shape[1]
+                num_joints_gt = joints_gt.shape[1]
+                joints_rgb = torch.ones(num_frames, num_joints, 4) * (
+                    torch.tensor([0.0, 1.0, 0.0, 1.0]).view(1, 1, 4))
+                joints_rgb_gt = torch.ones(
+                    num_frames, num_joints_gt, 4) * (
+                        torch.tensor([1.0, 0.0, 0.0, 1.0]).view(1, 1, 4))
+                joints_rgb_padded = torch.cat([joints_rgb, joints_rgb_gt],
+                                                dim=1)
 
-                pointcloud_images = self.joints_renderer(
-                    vertices=joints_padded,
-                    verts_rgba=joints_rgb_padded.to(self.device),
-                    cameras=cameras)
+            pointcloud_images = self.joints_renderer(
+                vertices=joints_padded,
+                verts_rgba=joints_rgb_padded.to(self.device),
+                cameras=cameras)
 
-                pointcloud_rgb = pointcloud_images[..., :3]
-                pointcloud_bgr = rgb2bgr(pointcloud_rgb)
-                pointcloud_mask = (pointcloud_images[..., 3:] > 0) * 1.0
-                output_images = output_images * (
-                    1 - pointcloud_mask) + pointcloud_mask * pointcloud_bgr
+            pointcloud_rgb = pointcloud_images[..., :3]
+            pointcloud_bgr = rgb2bgr(pointcloud_rgb)
+            pointcloud_mask = (pointcloud_images[..., 3:] > 0) * 1.0
+            output_images = output_images * (
+                1 - pointcloud_mask) + pointcloud_mask * pointcloud_bgr
 
+        if self.return_tensor:
+            output_images = output_images * 256 
+        else:
             output_images = tensor2array(output_images)
-
+        
+        if self.output_path is not None:
             for frame_idx, real_idx in enumerate(indexes):
                 folder = self.temp_path if self.temp_path is not None else\
                     self.output_path
@@ -263,9 +269,11 @@ class SMPLRenderer(BaseRenderer):
 
         # return
         if self.return_tensor:
-
             if images is not None:
-                rendered_map = torch.tensor(output_images)
+                if self.return_tensor:
+                    rendered_map = output_images
+                else:
+                    rendered_map = torch.tensor(output_images)
             else:
                 rendered_map = rendered_tensor
 

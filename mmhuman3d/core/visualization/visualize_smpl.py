@@ -889,6 +889,7 @@ def render_smpl(
             T = torch.Tensor(T)
         T = T[start:end]
         T = T.view(num_frames * num_person, 1, 3)
+        Ks = Ks.to(vertices.device)
         vertices = torch.einsum('blc,bvc->bvl', Ks, vertices + T)
 
         R = None
@@ -1026,7 +1027,8 @@ def render_smpl(
             resolution=render_resolution))
 
     if image_array is not None:
-        image_array = torch.Tensor(image_array)
+        if isinstance(image_array, np.ndarray):
+            image_array = torch.Tensor(image_array)
         image_array = align_input_to_padded(
             image_array, ndim=4, batch_size=num_frames, padding_mode='ones')
     # prepare the render data.
@@ -1093,7 +1095,17 @@ def visualize_smpl_hmr(cam_transl,
     frames and predicted cameras."""
     if kp2d is not None:
         bbox = convert_kp2d_to_bbox(kp2d, bbox_format=bbox_format)
-    Ks = convert_bbox_to_intrinsic(bbox, bbox_format=bbox_format)
+    
+    if bbox is None:
+        fake_bbox=[]
+        for i in range(len(cam_transl)):
+            fake_bbox.append([0,0,det_width,det_height])
+        fake_bbox = np.array(fake_bbox)
+        Ks = convert_bbox_to_intrinsic(fake_bbox, bbox_format=bbox_format)
+        # Ks = torch.from_numpy(Ks)
+        # Ks = Ks.to(cam_transl.device)
+    else:
+        Ks = convert_bbox_to_intrinsic(bbox, bbox_format=bbox_format)
     K = torch.Tensor(
         get_default_hmr_intrinsic(
             focal_length=focal_length,
