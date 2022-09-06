@@ -1,5 +1,3 @@
-
-
 import cv2
 import torch
 import numpy as np
@@ -24,8 +22,15 @@ def custom_renderer(results, save_image=False, body_model = body_model):
 
     if smpl_poses.shape[1:] == (24, 3, 3):
         smpl_poses = rotmat_to_aa(smpl_poses)
+    
+    bbox = []
+    for i in range(smpl_poses.shape[0]):
+        bbox.append([0,0,224,224])
+    
+    bbox = np.array(bbox)
 
     tensors = visualize_smpl.visualize_smpl_hmr(
+        bbox = bbox,
         poses=smpl_poses.reshape(-1, 24 * 3),
         betas=smpl_betas,
         cam_transl=pred_cams,
@@ -41,7 +46,7 @@ def custom_renderer(results, save_image=False, body_model = body_model):
     )
     
     if save_image:
-        tensors_de = tensors.detach()
+        tensors_de = tensors.detach().cpu().numpy() * 256
         save_img(affined_img,path_folders='affined_image')
         save_img(tensors_de,path_folders='rendered_image')
 
@@ -52,7 +57,7 @@ def custom_renderer(results, save_image=False, body_model = body_model):
 def save_img(img,path_folders='affined_image',title=None):
     if title is None:
         now = datetime.now()
-        title = now.strftime("%Y-%m-%d %H:%M:%S")
+        title = now.strftime("%m-%d-%H:%M:%S")
     if isinstance(img,list):
         for i,im in enumerate(img):
             print(f"write vis_results/{path_folders}/{title}-{i}.jpg")

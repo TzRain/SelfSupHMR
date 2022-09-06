@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, Tuple, Union
 import cv2
 import torch
+import os
 import torch.nn.functional as F
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
 from mmhuman3d.core.visualization.visualize_smpl import render_smpl
@@ -13,6 +14,7 @@ from mmhuman3d.utils.geometry import (
     project_points,
     rotation_matrix_to_angle_axis,
 )
+from mmhuman3d.utils.render_utils import custom_renderer
 from ..backbones.builder import build_backbone
 from ..body_models.builder import build_body_model
 from ..discriminators.builder import build_discriminator
@@ -164,14 +166,22 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
                  loss_camera: Optional[Union[dict, None]] = None,
                  loss_adv: Optional[Union[dict, None]] = None,
                  loss_segm_mask: Optional[Union[dict, None]] = None,
-                 init_cfg: Optional[Union[list, dict, None]] = None):
+                 init_cfg: Optional[Union[list, dict, None]] = None,
+                 pre_train: str = None,
+                 freeze_backbone: bool = False,
+                 freeze_head: bool = False,
+                 freeze_encoder: bool = False,
+                 ):
         super(SelfSupEstimator, self).__init__(init_cfg)
         self.backbone = build_backbone(backbone)
         self.neck = build_neck(neck)
         self.head = build_head(head)
         self.disc = build_discriminator(disc)
-        self.renderer = CustomRenderer(**renderer)
-
+        self.freeze_backbone = freeze_backbone
+        self.freeze_head = freeze_head
+        self.freeze_encoder = freeze_encoder
+        self.pre_train = pre_train 
+        # self.renderer = CustomRenderer(**renderer)
         self.body_model_train = build_body_model(body_model_train)
         self.body_model_test = build_body_model(body_model_test)
         self.convention = convention
@@ -195,8 +205,27 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.loss_adv = build_loss(loss_adv)
         self.loss_camera = build_loss(loss_camera)
         self.loss_segm_mask = build_loss(loss_segm_mask)
-        set_requires_grad(self.body_model_train, False)
-        set_requires_grad(self.body_model_test, False)
+        set_requires_grad(self.body_model_train, True) #!!!
+        set_requires_grad(self.body_model_test, True) #!!!
+
+        if self.pre_train is not None:
+            check_point_path = self.pre_train
+            if os.path.isfile(check_point_path):
+                pretrained_state_dict = torch.load(check_point_path,map_location=lambda storage, loc: storage)
+                print(f"load pretrain model for SelfSupEstimator from{check_point_path}")
+                self.load_state_dict(pretrained_state_dict['state_dict'],strict=False)  
+            else:
+                print(f'load pre_train failed {check_point_path} is not a file!')
+        
+        if self.freeze_encoder:
+            pass
+
+        if self.freeze_backbone:
+            set_requires_grad(self.backbone)
+
+        if self.freeze_head:
+            set_requires_grad(self.backbone)
+
 
     def train_step(self, data_batch, optimizer, **kwargs):
         """Train step function.
@@ -229,20 +258,30 @@ class SelfSupEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         predictions = self.head(features)
 
-        # render process
-        pred_pose = predictions['pred_pose']
-        pred_betas = predictions['pred_shape']
-        pred_cam = predictions['pred_cam']
-        pred_output = self.body_model_test(
-            betas=pred_betas,
-            body_pose=pred_pose[:, 1:],
-            global_orient=pred_pose[:, 0].unsqueeze(1),
-            pose2rot=False)
+        device = 'cuda'
 
-        pred_vertices = pred_output['vertices']
+        # org render process
+        affined_img = torch.Tensor([item['affined_img'] for item in data_batch['img_metas']]).to(device)  
+        result = {}
+        result['pred_pose'] = predictions['pred_pose']
+        result['pred_betas'] = predictions['pred_shape']
+        result['pred_cam'] = predictions['pred_cam']
+        result['affined_img'] = affined_img
+        tensor = custom_renderer(result,save_image=True,body_model=self.body_model_test)
+        assert tensor.requires_grad == True
 
-        self.renderer.render(pred_vertices,pred_cam)
-        self.renderer.save_img()
+        #? render process
+        # pred_pose = predictions['pred_pose']
+        # pred_betas = predictions['pred_shape']
+        # pred_cam = predictions['pred_cam']
+        # pred_output = self.body_model_test(
+        #     betas=pred_betas,
+        #     body_pose=pred_pose[:, 1:],
+        #     global_orient=pred_pose[:, 0].unsqueeze(1),
+        #     pose2rot=False)
+        # pred_vertices = pred_output['vertices']
+        # self.renderer.render(pred_vertices,pred_cam)
+        # self.renderer.save_img()
 
         targets = self.prepare_targets(data_batch)
 
@@ -881,6 +920,16 @@ class ImageSelfSupEstimator(SelfSupEstimator):
             image_path.append(img_meta['image_path'])
         all_preds['image_path'] = image_path
         all_preds['image_idx'] = kwargs['sample_idx']
+        
+        # render 
+        affined_img = torch.Tensor([item['affined_img'] for item in img_metas])
+        result = {}
+        result['pred_pose'] = predictions['pred_pose']
+        result['pred_betas'] = predictions['pred_shape']
+        result['pred_cam'] = predictions['pred_cam']
+        result['affined_img'] = affined_img
+        custom_renderer(result,save_image=True,body_model=self.body_model_test)
+
         return all_preds
 
 

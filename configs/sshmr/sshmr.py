@@ -26,6 +26,10 @@ img_res = 224
 # model settings
 model = dict(
     type='ImageSelfSupEstimator',
+    pre_train = "data/checkpoints/resnet50_hmr_pw3d.pth",
+    freeze_backbone = False,
+    freeze_head = False,
+    freeze_encoder = False,
     backbone=dict(
         type='ResNet',
         depth=50,

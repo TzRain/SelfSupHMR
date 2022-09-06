@@ -1,0 +1,27 @@
+# For field details: https://amulet-docs.azurewebsites.net/config_file.html
+description: Templated experiment
+# Docker environment (repo/image:tag)
+# Install custom dependencies in the image using the optional "image_setup" field
+# Set up the container and environment using the optional "setup" field
+environment:
+  registry: # ex: docker.io (default), reg.azurecr.io
+  image: # ex: microsoft_pytorch:v1.2.0_gpu_cuda9.0_py36_release_gpuenv_hvd0.16.2
+  setup:
+    - # ex: sudo apt-get install build-essential, pip install matplotlib --user
+
+# Experiment source code. This section is optional.
+# $CONFIG_DIR is expanded to the directory of this config file.
+code:
+  local_dir: # ex: $CONFIG_DIR/src
+
+# Optional field.
+data:
+  local_dir: # ex: $CONFIG_DIR/data
+
+# SKU usage: G1 (single GPU), G4 (quad GPU), G4-V100 (1 machine, 4 V100 gpus), etc...
+jobs:
+  - name:  # ex: simple_job_lr_05
+    sku: # ex: G1
+    command:
+      -  # ex: python main.py
+

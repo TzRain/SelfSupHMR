@@ -38,14 +38,14 @@ environment:
     - cd ~
     - mkdir repo
     - cd reop
-    - git clone https://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@github.com/TzRain/SHMR SHMR
-    - cd SHMR
+    - git clone https://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@github.com/TzRain/SSHMR SSHMR
+    - cd SSHMR
     - pip install wandb
     - pip install -r requirements.txt
     - pip install -U numpy
     - pip install -v -e .
     #git azcopy dataset
-    # - ~/download/azcopy_linux_amd64_10.16.0/azcopy cp https://bingdatawu2premium.blob.core.windows.net/fwd-data/jialzhu/SHMR/data?sv=2021-04-10&ss=btqf&srt=sco&st=2022-08-29T06%3A56%3A14Z&se=2022-08-30T06%3A56%3A14Z&sp=rwl&sig=240ZFdHjdBU8istpeIU4%2F%2BMF4mhcJZN0VpXbJ4wH6CY%3D" .   --recursive=true
+    # - ~/download/azcopy_linux_amd64_10.16.0/azcopy cp https://bingdatawu2premium.blob.core.windows.net/fwd-data/jialzhu/SSHMR/data?sv=2021-04-10&ss=btqf&srt=sco&st=2022-08-29T06%3A56%3A14Z&se=2022-08-30T06%3A56%3A14Z&sp=rwl&sig=240ZFdHjdBU8istpeIU4%2F%2BMF4mhcJZN0VpXbJ4wH6CY%3D" .   --recursive=true
     
 
 
@@ -64,6 +64,7 @@ jobs:
   - name: SHMR 0
     sku: 16G4
     process_count_per_node: 0
-    command:
-      
+    command: 
+      - cd ~/repo/SSHMR && ./tools/dist_train.sh configs/sshmr/sshmr.py work_dirs/sshmr 4 --no-validate
+      - sleep 2h
     execution_mode: basic

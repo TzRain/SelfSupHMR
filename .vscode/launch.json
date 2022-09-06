@@ -4,7 +4,23 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        // python tools/train.py configs/sshmr/sshmr.py --work-dir work_dirs/sshmr --gpus 1 --no-validate
+        {
+            "name": "Test SSHMR",
+            "type": "python",
+            "request": "launch",
+            "program": "/anaconda/envs/SSHMR/lib/python3.8/site-packages/torch/distributed/launch.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--nproc_per_node=1",
+                "--master_port=-29500",
+                "tools/test.py",
+                "configs/sshmr/sshmr.py", 
+                "--work-dir", "work_dirs/sshmr", 
+                "data/checkpoints/resnet50_hmr_pw3d.pth",
+                "--launcher","pytorch",
+                ],
+            "justMyCode": true
+        },
         {
             "name": "Train SSHMR",
             "type": "python",
