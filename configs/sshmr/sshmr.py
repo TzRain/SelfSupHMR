@@ -1,3 +1,6 @@
+from json import encoder
+
+
 _base_ = ['../_base_/default_runtime.py']
 use_adversarial_train = True
 
@@ -49,8 +52,8 @@ model = dict(
             model_path='data/body_models/smpl',
             joints_regressor='data/body_models/J_regressor_h36m.npy'),
         render_choice = 'hq',
-        palette = 'segmentation',
-    ),
+        palette = 'segmentation',),
+    encoder = dict(),
     body_model_train=dict(
         type='SMPL',
         keypoint_src='smpl_54',
